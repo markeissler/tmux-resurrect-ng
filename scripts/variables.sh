@@ -27,6 +27,9 @@ inline_strategy_token="->"
 save_command_strategy_option="@resurrect-save-command-strategy"
 default_save_command_strategy="ps"
 
+stat_mtime_command_strategy_option="@resurrect-stat-mtime_command-strategy"
+default_stat_mtime_command_strategy="stat_mtime"
+
 bash_history_option="@resurrect-save-bash-history"
 
 save_pane_buffers_option="@resurrect-save-pane-buffers"

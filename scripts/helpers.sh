@@ -82,9 +82,15 @@ resurrect_dir() {
 	echo $(get_tmux_option "$resurrect_dir_option" "$default_resurrect_dir")
 }
 
+resurrect_file_stub() {
+	local format
+	format+="tmux_resurrect_"
+	echo "$format"
+}
+
 resurrect_file_path() {
 	local timestamp="$(date +"%Y-%m-%dT%H:%M:%S")"
-	echo "$(resurrect_dir)/tmux_resurrect_${timestamp}.txt"
+	echo "$(resurrect_dir)/$(resurrect_file_stub)${timestamp}.txt"
 }
 
 last_resurrect_file() {
@@ -99,6 +105,18 @@ resurrect_history_file() {
 resurrect_buffer_file() {
 	local pane_id="$1"
 	echo "$(resurrect_dir)/tmux_buffer-${pane_id}"
+}
+
+resurrect_trigger_file() {
+	local pane_id="$1"
+	local pane_tty="${2//\//@}"
+	echo "$(resurrect_dir)/.trigger-${pane_id}:${pane_tty}"
+}
+
+save_auto_frequency() {
+	local frequency="$(get_tmux_option "$save_auto_frequency" "5")"
+	[ $frequency -lt 5 ] && frequency="5"
+	echo "$frequency"
 }
 
 restore_zoomed_windows() {

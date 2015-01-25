@@ -177,6 +177,16 @@ dump_pane_buffers() {
 		done
 }
 
+save_all_states() {
+	local resurrect_file_path="$(resurrect_file_path)"
+	mkdir -p "$(resurrect_dir)"
+	dump_panes   >  "$resurrect_file_path"
+	dump_windows >> "$resurrect_file_path"
+	dump_state   >> "$resurrect_file_path"
+	ln -fs "$(basename "$resurrect_file_path")" "$(last_resurrect_file)"
+	restore_zoomed_windows
+}
+
 save_all() {
 	local resurrect_file_path="$(resurrect_file_path)"
 	mkdir -p "$(resurrect_dir)"
@@ -201,4 +211,4 @@ main() {
 		display_message "Tmux environment saved!"
 	fi
 }
-main
+#main
