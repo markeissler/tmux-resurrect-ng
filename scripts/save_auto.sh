@@ -136,7 +136,7 @@ main() {
 
 		# return auto save status code
 		[[ $state_rslt -eq 0 ]] && (( status_index++ ))
-		[[ $status_index -eq 2 && $trigger_rslt -eq 0 ]] && (( status_index++ ))
+		[[ $status_index -eq 1 && $trigger_rslt -eq 0 ]] && (( status_index++ ))
 		printf "%c\n" ${status_codes[$status_index]};
 	fi
 }
