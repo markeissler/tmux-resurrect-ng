@@ -6,7 +6,7 @@ FILE_PATH="$1"
 
 exit_safely_if_empty_filepath() {
 	if [ -z "$FILE_PATH" ]; then
-		exit 0
+		exit 1
 	fi
 }
 
@@ -25,10 +25,13 @@ stat_command_flags() {
 
 full_command() {
 	stat "$(stat_command_flags)" "${FILE_PATH}"
+	return $?
 }
 
 main() {
-	exit_safely_if_empty_ppid
+	# exit_safely_if_empty_filepath
 	full_command
+	return $?
 }
 main
+exit $?
