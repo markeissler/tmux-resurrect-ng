@@ -8,8 +8,6 @@ CURRENT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 source "$CURRENT_DIR/file_helpers.sh"
 source "$CURRENT_DIR/save.sh"
 
-debug=1
-
 # @TODO:
 purge_stale_trigger(){
 	echo "$FUNCNAME: not implemented"
@@ -51,7 +49,7 @@ update_pane_trigger() {
 	fi
 
 	# save updated history/buffers files if no files exist or files are stale
-	if [ $debug -ne 0 ]; then
+	if [ enable_debug_mode_on ]; then
 		local debug_file_path="/tmp/tmxr_${pane_id}:${pane_tty//\//@}.txt"
 		echo "     time_now: $timeinsec" > "$debug_file_path"
 		echo " buffer_mtime: $buffer_file_mtime" >> "$debug_file_path"
@@ -108,7 +106,7 @@ update_state() {
 	fi
 
 	# save updated state if no file exists or file is stale
-	if [ $debug -ne 0 ]; then
+	if [ enable_debug_mode_on ]; then
 		local session_name="$(get_session_name)"
 		local debug_file_path="/tmp/tmxr_${session_name}.txt"
 		echo "   time_now: $timeinsec" > "$debug_file_path"

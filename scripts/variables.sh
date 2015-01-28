@@ -1,3 +1,7 @@
+# resurrect debug mode
+enable_debug_mode_option="@resurrect-enable-debug-mode"
+default_enable_debug_mode="off"
+
 # key bindings
 default_save_key="M-s C-s"
 save_option="@resurrect-save"

@@ -65,6 +65,11 @@ remove_first_char() {
 	echo "$1" | cut -c2-
 }
 
+enable_debug_mode_on() {
+	local option="$(get_tmux_option "$enable_debug_mode_option" "$default_enable_debug_mode")"
+	[ "$option" == "on" ]
+}
+
 save_bash_history_option_on() {
 	local option="$(get_tmux_option "$bash_history_option" "off")"
 	[ "$option" == "on" ]
