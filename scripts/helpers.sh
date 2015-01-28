@@ -15,6 +15,10 @@ get_tmux_option() {
 	fi
 }
 
+get_session_name() {
+	tmux display-message -p "#S"
+}
+
 get_pane_id() {
 	tmux display-message -p "#S:#I.#P"
 }

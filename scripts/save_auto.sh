@@ -56,8 +56,10 @@ update_pane_trigger() {
 		echo "     time_now: $timeinsec" > "$debug_file_path"
 		echo " buffer_mtime: $buffer_file_mtime" >> "$debug_file_path"
 		echo "   buffer_age: $(( timeinsec - buffer_file_mtime ))" >> "$debug_file_path"
+		echo "  buffer_path: $buffer_file_path" >> "$debug_file_path"
 		echo "history_mtime: $history_file_mtime" >> "$debug_file_path"
 		echo "  history_age: $(( timeinsec - history_file_mtime ))" >> "$debug_file_path"
+		echo " history_path: $history_file_path" >> "$debug_file_path"
 		echo " trigger_path: $trigger_file_path" >> "$debug_file_path"
 		echo "  update_code: $return_status" >> "$debug_file_path"
 	fi
@@ -107,7 +109,8 @@ update_state() {
 
 	# save updated state if no file exists or file is stale
 	if [ $debug -ne 0 ]; then
-		local debug_file_path="/tmp/tmxr_${pane_id%%:*}.txt"
+		local session_name="$(get_session_name)"
+		local debug_file_path="/tmp/tmxr_${session_name}.txt"
 		echo "   time_now: $timeinsec" > "$debug_file_path"
 		echo "state_mtime: $state_file_mtime" >> "$debug_file_path"
 		echo "  state_age: $(( timeinsec - state_file_mtime ))" >> "$debug_file_path"
@@ -116,10 +119,6 @@ update_state() {
 	[[ $return_status -gt 0 ]] && save_all_states
 
 	return $return_status
-}
-
-save_all_panes() {
-	dump_pane_buffers
 }
 
 main() {
