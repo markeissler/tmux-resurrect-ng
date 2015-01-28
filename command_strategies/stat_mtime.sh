@@ -18,7 +18,7 @@ stat_command_flags() {
  			echo "-f \"%m\""
  			;;
 		*)
-			echo "-c%X"
+			echo "-c%Y"
 			;;
 	esac
 }
