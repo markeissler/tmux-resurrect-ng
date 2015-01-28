@@ -1,3 +1,10 @@
+# process_restore_helpers.sh
+#
+# requires:
+#   variables.sh
+#   helpers.sh
+#
+
 restore_pane_processes_enabled() {
 	local restore_processes="$(get_tmux_option "$restore_processes_option" "$restore_processes")"
 	if [ "$restore_processes" == "false" ]; then
@@ -119,6 +126,8 @@ _restore_list() {
 _proc_starts_with_tildae() {
 	[[ "$1" =~ (^~) ]]
 }
+
+# @TODO: the following functions should probably get moved into pane_helpers.
 
 _get_inline_strategy() {
 	local pane_full_command="$1"

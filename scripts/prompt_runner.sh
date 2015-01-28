@@ -2,8 +2,10 @@
 
 CURRENT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
+source "$CURRENT_DIR/variables.sh"
 source "$CURRENT_DIR/helpers.sh"
-source "$CURRENT_DIR/save.sh"
+source "$CURRENT_DIR/pane_helpers.sh"
+source "$CURRENT_DIR/save_helpers.sh"
 
 # check if my tty has a trigger file, if so, run history/buffer save
 

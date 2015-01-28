@@ -2,11 +2,10 @@
 
 CURRENT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
-# source "$CURRENT_DIR/variables.sh"
-# source "$CURRENT_DIR/helpers.sh"
-# source "$CURRENT_DIR/spinner_helpers.sh"
+source "$CURRENT_DIR/variables.sh"
+source "$CURRENT_DIR/helpers.sh"
 source "$CURRENT_DIR/file_helpers.sh"
-source "$CURRENT_DIR/save.sh"
+source "$CURRENT_DIR/save_helpers.sh"
 
 # @TODO:
 purge_stale_trigger(){
@@ -16,6 +15,16 @@ purge_stale_trigger(){
 # @TODO:
 purge_stale_triggers() {
 	echo "$FUNCNAME: not implemented"
+}
+
+save_all_states() {
+	local resurrect_file_path="$(resurrect_file_path)"
+	mkdir -p "$(resurrect_dir)"
+	dump_panes   >  "$resurrect_file_path"
+	dump_windows >> "$resurrect_file_path"
+	dump_state   >> "$resurrect_file_path"
+	ln -fs "$(basename "$resurrect_file_path")" "$(last_resurrect_file)"
+	restore_zoomed_windows
 }
 
 update_pane_trigger() {

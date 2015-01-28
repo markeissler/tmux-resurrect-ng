@@ -1,3 +1,10 @@
+# file_helpers.sh
+#
+# requires:
+#   variables.sh
+#		helpers.sh
+#
+
 _stat_mtime_command_strategy_file() {
 	local stat_mtime_command_strategy="$(get_tmux_option "$stat_mtime_command_strategy_option" "$default_stat_mtime_command_strategy")"
 	local strategy_file="$CURRENT_DIR/../command_strategies/${stat_mtime_command_strategy}.sh"

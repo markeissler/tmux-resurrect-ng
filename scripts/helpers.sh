@@ -1,3 +1,9 @@
+# helpers.sh
+#
+# requires:
+#		variables.sh
+#
+
 default_resurrect_dir="$HOME/.tmux/resurrect"
 resurrect_dir_option="@resurrect-dir"
 
