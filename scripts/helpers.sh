@@ -3,7 +3,10 @@ resurrect_dir_option="@resurrect-dir"
 
 SUPPORTED_VERSION="1.9"
 
-# helper functions
+##
+# tmux helpers
+##
+
 get_tmux_option() {
 	local option="$1"
 	local default_value="$2"
@@ -56,18 +59,19 @@ display_message() {
 	tmux set-option -gq display-time "$saved_display_time"
 }
 
-
-supported_tmux_version_ok() {
-	$CURRENT_DIR/check_tmux_version.sh "$SUPPORTED_VERSION"
-}
-
-remove_first_char() {
-	echo "$1" | cut -c2-
-}
+##
+# option helpers
+##
 
 enable_debug_mode_on() {
 	local option="$(get_tmux_option "$enable_debug_mode_option" "$default_enable_debug_mode")"
 	[ "$option" == "on" ]
+}
+
+save_auto_frequency() {
+	local frequency="$(get_tmux_option "$save_auto_frequency" "5")"
+	[ $frequency -lt 5 ] && frequency="5"
+	echo "$frequency"
 }
 
 save_bash_history_option_on() {
@@ -85,7 +89,9 @@ enable_ansi_buffers_on() {
 	[ "$option" == "on" ]
 }
 
+##
 # path helpers
+##
 
 resurrect_dir() {
 	echo $(get_tmux_option "$resurrect_dir_option" "$default_resurrect_dir")
@@ -122,10 +128,15 @@ resurrect_trigger_file() {
 	echo "$(resurrect_dir)/.trigger-${pane_id}:${pane_tty}"
 }
 
-save_auto_frequency() {
-	local frequency="$(get_tmux_option "$save_auto_frequency" "5")"
-	[ $frequency -lt 5 ] && frequency="5"
-	echo "$frequency"
+##
+# miscellaneous helpers
+##
+supported_tmux_version_ok() {
+	$CURRENT_DIR/check_tmux_version.sh "$SUPPORTED_VERSION"
+}
+
+remove_first_char() {
+	echo "$1" | cut -c2-
 }
 
 restore_zoomed_windows() {
