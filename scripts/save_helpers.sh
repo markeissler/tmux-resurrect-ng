@@ -64,6 +64,59 @@ dump_panes_raw() {
   tmux list-panes -a -F "$(pane_format)"
 }
 
+_purge_files() {
+  local file_pattern="$1"
+  local frequency="$2" # max files to keep
+  local file_path_list=()
+  local file_path_list_sorted=()
+  local file_path=""
+  local defaultIFS="$IFS"
+  local IFS="$defaultIFS"
+  local return_status=0
+
+  # we need both of our parameters to function!
+  [[ -z "$file_pattern" || -z "$frequency" ]] && return 254
+
+  # find the most-recent files up to frequency (max)
+  IFS=$'\n'
+  file_path_list=( $(ls -1 $file_pattern) )
+  [[ $? -ne 0 ]] && return 255
+  file_path_list_sorted=( $(echo "${file_path_list[*]}" | sort -r) )
+  IFS="$defaultIFS"
+
+  # iterate over path list, skipping frequency count, deleting the rest
+  _count=0
+  for file in "${file_path_list_sorted[@]}"; do
+    (( _count++ ))
+    [[ ${_count} -le ${frequency} ]] && continue
+    rm "$file"
+    [[ $? -ne 0 ]] && return_status=1 && break
+  done
+
+  return $return_status
+}
+
+purge_buffer_files() {
+  echo "$FUNCNAME: not implemented"
+}
+
+purge_history_files() {
+  echo "$FUNCNAME: not implemented"
+}
+
+purge_state_files() {
+  local state_file_pattern="$(resurrect_dir)/$(resurrect_file_stub)"'*.txt'
+  local frequency=$(file_purge_frequency) # max files to keep
+  local return_status=0
+
+  echo "$state_file_pattern" > /tmp/patr.out
+
+  _purge_files "$state_file_pattern" "$frequency"
+  return_status=$?
+
+  return $return_status
+}
+
 save_shell_history() {
   local pane_id="$1"
   local pane_command="$2"

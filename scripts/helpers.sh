@@ -74,8 +74,19 @@ enable_debug_mode_on() {
 	[ "$option" == "on" ]
 }
 
+file_purge_frequency() {
+	local frequency="$(get_tmux_option "$file_purge_frequency_option" "$default_file_purge_frequency")"
+	[[ $frequency -lt 0 ]] && frequency="0"
+	echo "$frequency"
+}
+
+enable_file_purge_on() {
+	[ "$(file_purge_frequency)" -ne 0 ]
+}
+
 save_auto_frequency() {
 	local frequency="$(get_tmux_option "$save_auto_frequency_option" "$default_save_auto_frequency")"
+	[[ $frequency -lt 0 ]] && frequency="0"
 	[[ $frequency -ne 0 && $frequency -lt 5 ]] && frequency="5"
 	echo "$frequency"
 }

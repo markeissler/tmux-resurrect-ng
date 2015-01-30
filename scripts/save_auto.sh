@@ -89,15 +89,21 @@ update_pane_triggers() {
 
 update_state() {
 	local state_file_pattern="$(resurrect_dir)/$(resurrect_file_stub)"'*.txt'
+	local state_file_path_list=()
 	local state_file_path=""
 	local timeinsec=$(date +%s)
 	local frequency=$(save_auto_frequency) # minutes
 	local frequency_sec=$(( frequency * 60 ))
+	local defaultIFS="$IFS"
+	local IFS="$defaultIFS"
 	local return_status=0
 
 	# find the most-recent layout/state file
-	state_file_path="$(ls -1 $state_file_pattern | sort -r | head -1)"
+	IFS=$'\n'
+	state_file_path_list=( $(ls -1 $state_file_pattern) )
 	[[ $? -ne 0 ]] && return 255
+	state_file_path=$(echo "${state_file_path_list[*]}" | sort -r | head -1)
+	IFS="$defaultIFS"
 
 	# calculate age of layout/state file, save state if old or missing
 	local state_file_mtime=$( (stat_mtime $state_file_path) || echo -1 )
@@ -130,11 +136,11 @@ update_state() {
 
 main() {
 	if supported_tmux_version_ok; then
-		local state_rslt trigger_rslt
+		local state_rslt trigger_rslt purge_state_rslt
 		local status_index=0
 		local status_codes=( 'X' '-' 'S' 'R' )
 
-		if enable_save_auto_on; then
+		if [[ $(enable_save_auto_on; echo $?) -eq 0 ]]; then
 			# save_auto is enabled, bump up status_index
 			(( status_index++ ))
 
@@ -147,6 +153,11 @@ main() {
 			# return auto save status code
 			[[ $state_rslt -eq 0 ]] && (( status_index++ ))
 			[[ $status_index -eq 2 && $trigger_rslt -eq 0 ]] && (( status_index++ ))
+		fi
+
+		if [[ $(enable_file_purge_on; echo $?) -eq 0 && $status_index -eq 3 ]]; then
+				# purge old states
+				purge_state_files; purge_state_rslt=$?
 		fi
 
 		printf "%c\n" ${status_codes[$status_index]};

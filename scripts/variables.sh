@@ -61,9 +61,23 @@ default_stat_mtime_command_strategy="stat_mtime"
 # state options
 ##
 
+# File purge frequency
+#
+# Maximum number of past state/history/buffer files to maintain. Once this
+# number of files has been reached, oldest files will be purged. Values less
+# than 0 will be set to 0. Disable file purge with a setting of "0".
+#
+# The default value of "5" is considered a reasonable setting.
+#
+file_purge_frequency_option="@resurrect-file-purge-frequency"
+default_file_purge_frequency="5"
+
 # Auto save freqency
 #
-# Specified in minutes.
+# Specified in minutes. Values less than 0 will be set to 0. Values between 1
+# and 4 will be set to 5. Disable save auto with a setting of "0".
+#
+# The default value of "5" is considered a reasonable setting.
 #
 save_auto_frequency_option="@resurrect-save-auto-frequency"
 default_save_auto_frequency="5"
