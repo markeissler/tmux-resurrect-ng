@@ -107,7 +107,7 @@ save_pane_buffer() {
     if [[ "$tmxr_dump_flag" = true || "$full_command" = ":" ]]; then
       [[ -f "${buffer_file}" ]] && rm "${buffer_file}" &> /dev/null
       local capture_color_opt=""
-      if enable_ansi_buffers_on; then
+      if enable_pane_ansi_buffers_on; then
         capture_color_opt="-e "
       fi
       tmux capture-pane ${capture_color_opt} -t "${pane_id}" -S -32768 \; save-buffer -b 0 "${buffer_file}" \; delete-buffer -b 0

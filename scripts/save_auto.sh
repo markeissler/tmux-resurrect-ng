@@ -132,17 +132,23 @@ main() {
 	if supported_tmux_version_ok; then
 		local state_rslt trigger_rslt
 		local status_index=0
-		local status_codes=( '-' 'S' 'R' )
+		local status_codes=( 'X' '-' 'S' 'R' )
 
-		# save all states
-		update_state; state_rslt=$?
+		if enable_save_auto_on; then
+			# save_auto is enabled, bump up status_index
+			(( status_index++ ))
 
-		# save history/buffer triggers
-		update_pane_triggers; trigger_rslt=$?
+			# save all states
+			update_state; state_rslt=$?
 
-		# return auto save status code
-		[[ $state_rslt -eq 0 ]] && (( status_index++ ))
-		[[ $status_index -eq 1 && $trigger_rslt -eq 0 ]] && (( status_index++ ))
+			# save history/buffer triggers
+			update_pane_triggers; trigger_rslt=$?
+
+			# return auto save status code
+			[[ $state_rslt -eq 0 ]] && (( status_index++ ))
+			[[ $status_index -eq 2 && $trigger_rslt -eq 0 ]] && (( status_index++ ))
+		fi
+
 		printf "%c\n" ${status_codes[$status_index]};
 	fi
 }

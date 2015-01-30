@@ -75,24 +75,31 @@ enable_debug_mode_on() {
 }
 
 save_auto_frequency() {
-	local frequency="$(get_tmux_option "$save_auto_frequency" "5")"
-	[ $frequency -lt 5 ] && frequency="5"
+	local frequency="$(get_tmux_option "$save_auto_frequency_option" "$default_save_auto_frequency")"
+	[[ $frequency -ne 0 && $frequency -lt 5 ]] && frequency="5"
 	echo "$frequency"
 }
 
-save_bash_history_option_on() {
-	local option="$(get_tmux_option "$bash_history_option" "off")"
-	[ "$option" == "on" ]
+enable_save_auto_on() {
+	[ "$(save_auto_frequency)" -ne 0 ]
 }
 
-save_pane_buffers_option_on() {
-	local option="$(get_tmux_option "$save_pane_buffers_option" "off")"
-	[ "$option" == "on" ]
+enable_bash_history_on() {
+	local option="$(get_tmux_option "$enable_bash_history_option" "$default_enable_bash_history")"
+	local optdep="$(get_tmux_option "$dep_enable_bash_history_option" "")"
+	[[ -n "$optdep" && "$optdep" == "on" ]] || [ "$option" == "on" ]
 }
 
-enable_ansi_buffers_on() {
-	local option="$(get_tmux_option "$enable_ansi_buffers" "off")"
-	[ "$option" == "on" ]
+enable_pane_buffers_on() {
+	local option="$(get_tmux_option "$enable_pane_buffers_option" "$default_enable_pane_buffers")"
+	local optdep="$(get_tmux_option "$dep_enable_pane_buffers_option" "")"
+	[[ -n "$optdep" && "$optdep" == "on" ]] || [ "$option" == "on" ]
+}
+
+enable_pane_ansi_buffers_on() {
+	local option="$(get_tmux_option "$enable_pane_ansi_buffers_option" "$default_enable_pane_ansi_buffers")"
+	local optdep="$(get_tmux_option "$dep_enable_pane_ansi_buffers_option" "")"
+	[[ -n "$optdep" && "$optdep" == "on" ]] || [ "$option" == "on" ]
 }
 
 ##

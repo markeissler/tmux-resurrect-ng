@@ -15,10 +15,10 @@ save_all() {
 	dump_windows >> "$resurrect_file_path"
 	dump_state   >> "$resurrect_file_path"
 	ln -fs "$(basename "$resurrect_file_path")" "$(last_resurrect_file)"
-	if save_bash_history_option_on; then
+	if enable_bash_history_on; then
 		dump_bash_history
 	fi
-	if save_pane_buffers_option_on; then
+	if enable_pane_buffers_on; then
 		dump_pane_buffers
 	fi
 	restore_zoomed_windows
