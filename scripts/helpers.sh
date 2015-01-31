@@ -123,7 +123,7 @@ resurrect_dir() {
 
 resurrect_file_stub() {
 	local format
-	format+="tmux_resurrect_"
+	format+="tmxr_"
 	echo "$format"
 }
 
@@ -138,12 +138,12 @@ last_resurrect_file() {
 
 resurrect_history_file() {
 	local pane_id="$1"
-	echo "$(resurrect_dir)/bash_history-${pane_id}"
+	echo "$(resurrect_dir)/$(resurrect_file_stub)history-${pane_id}"
 }
 
 resurrect_buffer_file() {
 	local pane_id="$1"
-	echo "$(resurrect_dir)/tmux_buffer-${pane_id}"
+	echo "$(resurrect_dir)/$(resurrect_file_stub)buffer-${pane_id}"
 }
 
 resurrect_trigger_file() {
