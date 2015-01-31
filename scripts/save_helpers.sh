@@ -73,14 +73,16 @@ _purge_files() {
   local defaultIFS="$IFS"
   local IFS="$defaultIFS"
   local return_status=0
+  local stderr_status=0
 
   # we need both of our parameters to function!
   [[ -z "$file_pattern" || -z "$frequency" ]] && return 254
 
   # find the most-recent files up to frequency (max)
   IFS=$'\n'
-  file_path_list=( $(ls -1 $file_pattern) )
-  [[ $? -ne 0 ]] && return 255
+  stderr_status=$(ls -1 $file_pattern 2>&1 1>/dev/null)
+  [[ $? -ne 0 ]] && [[ ! "${stderr_status}" =~ "No such file or directory" ]] && return 255
+  file_path_list=( $(ls -1 $file_pattern 2>/dev/null) )
   file_path_list_sorted=( $(echo "${file_path_list[*]}" | sort -r) )
   IFS="$defaultIFS"
 

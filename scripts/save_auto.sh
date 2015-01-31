@@ -98,11 +98,13 @@ update_state() {
 	local defaultIFS="$IFS"
 	local IFS="$defaultIFS"
 	local return_status=0
+	local stderr_status=0
 
 	# find the most-recent layout/state file
 	IFS=$'\n'
-	state_file_path_list=( $(ls -1 $state_file_pattern) )
-	[[ $? -ne 0 ]] && return 255
+	stderr_status=$(ls -1 $state_file_pattern 2>&1 1>/dev/null)
+	[[ $? -ne 0 ]] && [[ ! "${stderr_status}" =~ "No such file or directory" ]] && return 255
+	state_file_path_list=( $(ls -1 $state_file_pattern 2>/dev/null) )
 	state_file_path=$(echo "${state_file_path_list[*]}" | sort -r | head -1)
 	IFS="$defaultIFS"
 
