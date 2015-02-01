@@ -31,13 +31,49 @@ save_all_states() {
 update_pane_trigger() {
 	local pane_id="$1"
 	local pane_tty="$(get_pane_tty "$pane_id")"
-	local buffer_file_path="$(resurrect_buffer_file "${pane_id}")"
-	local history_file_path="$(resurrect_history_file "$pane_id")"
-	local trigger_file_path="$(resurrect_trigger_file "$pane_id" "$pane_tty")"
+	local buffer_file_pattern="$(pane_buffer_file_path "${pane_id}" "true")"
+	local buffer_file_path_list=()
+	local buffer_file_path=""
+	local buffer_file_extension=".txt"
+	local history_file_pattern="$(pane_history_file_path "${pane_id}" "true")"
+	local history_file_extension=".txt"
+	local history_file_path=""
+	local trigger_file_path="$(pane_trigger_file "$pane_id" "$pane_tty")"
 	local timeinsec=$(date +%s)
 	local frequency=$(save_auto_frequency) # minutes
 	local frequency_sec=$(( frequency * 60 ))
 	local return_status=0
+
+	# must have a pane_id!
+	[[ -z "$pane_tty" ]] && return 255
+
+	# figure out buffer file extension
+	if [[ $(enable_pane_ansi_buffers_on; echo $?) -eq 0 ]]; then
+		buffer_file_extension=".ans"
+	fi
+	buffer_file_pattern+='*'"$buffer_file_extension"
+
+	# figure out history file extension
+	if [[ "$(get_pane_command)" == "bash" ]]; then
+		history_file_extension=".bsh"
+	fi
+	history_file_pattern+='*'"$history_file_extension"
+
+	# find the most-recent buffer file
+	IFS=$'\n'
+	stderr_status=$(ls -1 $buffer_file_pattern 2>&1 1>/dev/null)
+	[[ $? -ne 0 ]] && [[ ! "${stderr_status}" =~ "No such file or directory" ]] && return 255
+	buffer_file_path_list=( $(ls -1 $buffer_file_pattern 2>/dev/null) )
+	buffer_file_path=$(echo "${buffer_file_path_list[*]}" | sort -r | head -1)
+	IFS="$defaultIFS"
+
+	# find the most-recent history file
+	IFS=$'\n'
+	stderr_status=$(ls -1 $history_file_pattern 2>&1 1>/dev/null)
+	[[ $? -ne 0 ]] && [[ ! "${stderr_status}" =~ "No such file or directory" ]] && return 255
+	history_file_path_list=( $(ls -1 $history_file_pattern 2>/dev/null) )
+	history_file_path=$(echo "${history_file_path_list[*]}" | sort -r | head -1)
+	IFS="$defaultIFS"
 
 	# if history/buffer files are missing or one of them is old, update trigger
 	local buffer_file_mtime=$( (stat_mtime $buffer_file_path) || echo -1 )

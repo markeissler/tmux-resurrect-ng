@@ -40,6 +40,14 @@ get_pane_tty() {
 	tmux display-message -t "$pane_id" -p "#{pane_tty}"
 }
 
+get_pane_command() {
+	local pane_id="$1"
+	[[ -z "$1" ]] && pane_id="$(get_pane_id)"
+
+	# display current pane command for pane_id
+	tmux display-message -t "$pane_id" -p "#{pane_current_command}"
+}
+
 # Ensures a message is displayed for 5 seconds in tmux prompt.
 # Does not override the 'display-time' tmux option.
 display_message() {
@@ -128,7 +136,12 @@ resurrect_file_stub() {
 }
 
 resurrect_file_path() {
-	local timestamp="$(date +"%Y-%m-%dT%H:%M:%S")"
+	local globstamp='[0-9]*'
+	local timestamp="$(date +"%s")"
+
+	# globstamp instead of timestamp?
+	[[ -n "$1" && "$1" = true ]] && timestamp="$globstamp"
+
 	echo "$(resurrect_dir)/$(resurrect_file_stub)${timestamp}.txt"
 }
 
@@ -136,19 +149,59 @@ last_resurrect_file() {
 	echo "$(resurrect_dir)/last"
 }
 
-resurrect_history_file() {
+pane_history_file_path() {
 	local pane_id="$1"
-	echo "$(resurrect_dir)/$(resurrect_file_stub)history-${pane_id}"
+	local globstamp='[0-9]*'
+	local timestamp="$(date +"%s")"
+
+	# must have a pane_id!
+	[[ -z "$pane_id" ]] && echo "" && return 1
+
+	# globstamp instead of timestamp?
+	[[ -n "$2" && "$2" = true ]] && timestamp="$globstamp"
+
+	echo "$(resurrect_dir)/$(resurrect_file_stub)${timestamp}_history-${pane_id}"
 }
 
-resurrect_buffer_file() {
+last_pane_history_file() {
 	local pane_id="$1"
-	echo "$(resurrect_dir)/$(resurrect_file_stub)buffer-${pane_id}"
+
+	# must have a pane_id!
+	[[ -z "$pane_id" ]] && echo "" && return 1
+
+	echo "$(resurrect_dir)/last_history-${pane_id}"
 }
 
-resurrect_trigger_file() {
+pane_buffer_file_path() {
+	local pane_id="$1"
+	local globstamp='[0-9]*'
+	local timestamp="$(date +"%s")"
+
+	# must have a pane_id!
+	[[ -z "$pane_id" ]] && echo "" && return 1
+
+	# globstamp instead of timestamp?
+	[[ -n "$2" && "$2" = true ]] && timestamp="$globstamp"
+
+	echo "$(resurrect_dir)/$(resurrect_file_stub)${timestamp}_buffer-${pane_id}"
+}
+
+last_pane_buffer_file() {
+	local pane_id="$1"
+
+	# must have a pane_id!
+	[[ -z "$pane_id" ]] && echo "" && return 1
+
+	echo "$(resurrect_dir)/last_buffer-${pane_id}"
+}
+
+pane_trigger_file() {
 	local pane_id="$1"
 	local pane_tty="${2//\//@}"
+
+	# must have a pane_id!
+	[[ -z "$pane_id" || -z "$pane_tty" ]] && echo "" && return 1
+
 	echo "$(resurrect_dir)/.trigger-${pane_id}:${pane_tty}"
 }
 

@@ -107,11 +107,9 @@ purge_history_files() {
 }
 
 purge_state_files() {
-  local state_file_pattern="$(resurrect_dir)/$(resurrect_file_stub)"'*.txt'
+  local state_file_pattern="$(resurrect_file_path "true")"
   local frequency=$(file_purge_frequency) # max files to keep
   local return_status=0
-
-  echo "$state_file_pattern" > /tmp/patr.out
 
   _purge_files "$state_file_pattern" "$frequency"
   return_status=$?
@@ -119,21 +117,31 @@ purge_state_files() {
   return $return_status
 }
 
-save_shell_history() {
+save_pane_history() {
   local pane_id="$1"
   local pane_command="$2"
   local full_command="$3"
   local tmxr_dump_flag=false
-  local history_file_path="$(resurrect_history_file "$pane_id")"
+  local history_file_path="$(pane_history_file_path "$pane_id")"
+  local history_file_extension=".txt"
+  local update_status=0
 
   # tmxr_runner will set this flag to true, no one else should
   [[ -n "$4" ]] && tmxr_dump_flag="$4"
+
+  # figure out history file extension
+  if [[ "$pane_command" == "bash" ]]; then
+    history_file_extension=".bsh"
+  fi
+  history_file_path+="$history_file_extension"
 
   if [ "$pane_command" = "bash" ]; then
     if [[ "$tmxr_dump_flag" = true ]]; then
       # If tmxr_dump_flag is true, the history command is intended to be run
       # from a local function within the target pane. Likely PROMPT_COMMAND.
       history -w "$history_file_path"
+
+      update_status=1
     elif [ "$full_command" = ":" ]; then
       # leading space prevents the command from being saved to history
       # (assuming default HISTCONTROL settings)
@@ -141,7 +149,14 @@ save_shell_history() {
       # C-e C-u is a Bash shortcut sequence to clear whole line. It is necessary to
       # delete any pending input so it does not interfere with our history command.
       tmux send-keys -t "$pane_id" C-e C-u "$write_command" C-m
+
+      update_status=1
     fi
+  fi
+
+  # relink last to current file
+  if [[ "$update_status" -eq 1 ]]; then
+    ln -fs "$(basename "$history_file_path")" "$(last_pane_history_file "$pane_id")"
   fi
 }
 
@@ -150,26 +165,34 @@ save_pane_buffer() {
   local pane_command="$2"
   local full_command="$3"
   local tmxr_dump_flag=false
-  local buffer_file="$(resurrect_buffer_file "${pane_id}")"
+  local buffer_file_path="$(pane_buffer_file_path "${pane_id}")"
+  local buffer_file_extension=".txt"
   local prompt1 prompt2
   local prompt_len=0
   local sed_pattern=""
+  local update_status=0
 
   # tmxr_runner will set this flag to true, no one else should
   [[ -n "$4" ]] && tmxr_dump_flag="$4"
 
+  # figure out buffer file extension
+  if [[ $(enable_pane_ansi_buffers_on; echo $?) -eq 0 ]]; then
+    buffer_file_extension=".ans"
+  fi
+  buffer_file_path+="$buffer_file_extension"
+
   if [[ "$pane_command" = "bash" ]]; then
     if [[ "$tmxr_dump_flag" = true || "$full_command" = ":" ]]; then
-      [[ -f "${buffer_file}" ]] && rm "${buffer_file}" &> /dev/null
+      [[ -f "${buffer_file_path}" ]] && rm "${buffer_file_path}" &> /dev/null
       local capture_color_opt=""
       if enable_pane_ansi_buffers_on; then
         capture_color_opt="-e "
       fi
-      tmux capture-pane ${capture_color_opt} -t "${pane_id}" -S -32768 \; save-buffer -b 0 "${buffer_file}" \; delete-buffer -b 0
+      tmux capture-pane ${capture_color_opt} -t "${pane_id}" -S -32768 \; save-buffer -b 0 "${buffer_file_path}" \; delete-buffer -b 0
 
       # strip trailing empty lines from saved buffer
       sed_pattern='/^\n*$/{$d;N;};/\n$/ba'
-      sed -i.bak -e ':a' -e "${sed_pattern}" "${buffer_file}" &>/dev/null
+      sed -i.bak -e ':a' -e "${sed_pattern}" "${buffer_file_path}" &>/dev/null
 
       if [[ "$tmxr_dump_flag" = false ]]; then
         # calculate line span of bash prompt
@@ -190,12 +213,19 @@ save_pane_buffer() {
         # strip history command and next trailing prompt
         if [ $prompt_len -gt 0 ]; then
           sed_pattern='1,'${prompt_len}'!{P;N;D;};N;ba'
-          sed -i.bak -n -e ':a' -e "${sed_pattern}" "${buffer_file}" &>/dev/null
+          sed -i.bak -n -e ':a' -e "${sed_pattern}" "${buffer_file_path}" &>/dev/null
         fi
       fi
-    fi
 
-    rm "${buffer_file}.bak" &> /dev/null
+      rm "${buffer_file_path}.bak" &> /dev/null
+
+      update_status=1
+    fi
+  fi
+
+  # relink last to current file
+  if [[ "$update_status" -eq 1 ]]; then
+    ln -fs "$(basename "$buffer_file_path")" "$(last_pane_buffer_file "$pane_id")"
   fi
 }
 
@@ -234,7 +264,7 @@ dump_bash_history() {
     while IFS=$'\t' read line_type session_name window_number window_name window_active window_flags pane_index dir pane_active pane_command full_command; do
       local pane_id="$session_name:$window_number.$pane_index"
       [[ -n "$target_pane_id" && "$pane_id" != "$target_pane_id" ]] && continue
-      save_shell_history "$pane_id" "$pane_command" "$full_command" "$tmxr_dump_flag"
+      save_pane_history "$pane_id" "$pane_command" "$full_command" "$tmxr_dump_flag"
     done
 }
 
