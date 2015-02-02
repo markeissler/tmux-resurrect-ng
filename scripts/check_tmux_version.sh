@@ -75,4 +75,5 @@ main() {
   local current_version_int="$(tmux_version_int)"
   exit_if_unsupported_version "$current_version_int" "$supported_version_int"
 }
+
 main
