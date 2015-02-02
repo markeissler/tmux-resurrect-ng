@@ -1,6 +1,7 @@
 # save_helpers.sh
 #
 # requires:
+#   variables.sh
 #   helpers.sh
 #   pane_helpers.sh
 #
