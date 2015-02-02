@@ -51,13 +51,13 @@ update_pane_trigger() {
 	if [[ $(enable_pane_ansi_buffers_on; echo $?) -eq 0 ]]; then
 		buffer_file_extension=".ans"
 	fi
-	buffer_file_pattern+='*'"$buffer_file_extension"
+	buffer_file_pattern+="$buffer_file_extension"
 
 	# figure out history file extension
 	if [[ "$(get_pane_command)" == "bash" ]]; then
 		history_file_extension=".bsh"
 	fi
-	history_file_pattern+='*'"$history_file_extension"
+	history_file_pattern+="$history_file_extension"
 
 	# find the most-recent buffer file
 	IFS=$'\n'
