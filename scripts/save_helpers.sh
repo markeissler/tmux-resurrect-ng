@@ -89,7 +89,7 @@ dump_state() {
   tmux display-message -p "$(state_format)"
 }
 
-dump_bash_history() {
+dump_pane_histories() {
   local target_pane_id="$1"
   local tmxr_dump_flag=false
 

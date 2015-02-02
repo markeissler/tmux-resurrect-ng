@@ -23,7 +23,7 @@ tmxr_runner() {
     [[ ! -f "${trigger_file_path}" ]] && return 0
 
     # save pane history
-    dump_bash_history "$pane_id" "$tmxr_dump_flag"
+    dump_pane_histories "$pane_id" "$tmxr_dump_flag"
 
     # save pane buffer
     dump_pane_buffers "$pane_id" "$tmxr_dump_flag"
