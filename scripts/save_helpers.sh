@@ -64,6 +64,60 @@ dump_panes_raw() {
   tmux list-panes -a -F "$(pane_format)"
 }
 
+# translates pane pid to process command running inside a pane
+dump_panes() {
+  local full_command
+  local d=$'\t' # delimiter
+  dump_panes_raw |
+    while IFS=$'\t' read line_type session_name window_number window_name window_active window_flags pane_index dir pane_active pane_command pane_pid; do
+      # check if current pane is part of a maximized window and if the pane is active
+      if [[ "${window_flags}" == *Z* ]] && [[ ${pane_active} == 1 ]]; then
+        # unmaximize the pane
+        tmux resize-pane -Z -t "${session_name}:${window_number}"
+      fi
+      full_command="$(full_command $pane_pid)"
+      echo "${line_type}${d}${session_name}${d}${window_number}${d}${window_name}${d}${window_active}${d}${window_flags}${d}${pane_index}${d}${dir}${d}${pane_active}${d}${pane_command}${d}:${full_command}"
+    done
+}
+
+dump_windows() {
+  tmux list-windows -a -F "$(window_format)"
+}
+
+dump_state() {
+  tmux display-message -p "$(state_format)"
+}
+
+dump_bash_history() {
+  local target_pane_id="$1"
+  local tmxr_dump_flag=false
+
+  # tmxr_runner will set this flag to true, no one else should
+  [[ -n "$2" ]] && tmxr_dump_flag="$2"
+
+  dump_panes |
+    while IFS=$'\t' read line_type session_name window_number window_name window_active window_flags pane_index dir pane_active pane_command full_command; do
+      local pane_id="$session_name:$window_number.$pane_index"
+      [[ -n "$target_pane_id" && "$pane_id" != "$target_pane_id" ]] && continue
+      save_pane_history "$pane_id" "$pane_command" "$full_command" "$tmxr_dump_flag"
+    done
+}
+
+dump_pane_buffers() {
+  local target_pane_id="$1"
+  local tmxr_dump_flag=false
+
+  # tmxr_runner will set this flag to true, no one else should
+  [[ -n "$2" ]] && tmxr_dump_flag="$2"
+
+  dump_panes |
+    while IFS=$'\t' read line_type session_name window_number window_name window_active window_flags pane_index dir pane_active pane_command full_command; do
+      local pane_id="$session_name:$window_number.$pane_index"
+      [[ -n "$target_pane_id" && "$pane_id" != "$target_pane_id" ]] && continue
+      save_pane_buffer "$pane_id" "$pane_command" "$full_command" "$tmxr_dump_flag"
+    done
+}
+
 _purge_files() {
   local file_pattern="$1"
   local frequency="$2" # max files to keep
@@ -99,11 +153,43 @@ _purge_files() {
 }
 
 purge_buffer_files() {
-  echo "$FUNCNAME: not implemented"
+  local pane_id="$1"
+  local buffer_file_pattern="$(pane_buffer_file_path "${pane_id}" "true")"
+  local frequency=$(file_purge_frequency) # max files to keep
+  local return_status=0
+
+  # must have a pane_id!
+  [[ -z "$pane_id" ]] && return 255
+
+  # NOTE: We do not care about the file extension because the buffer files
+  # are dependent upon their associated state files. If we delete the state
+  # file, then we no longer need the buffer file, regardless of type.
+  buffer_file_pattern+='.*'
+
+  _purge_files "$buffer_file_pattern" "$frequency"
+  return_status=$?
+
+  return $return_status
 }
 
 purge_history_files() {
-  echo "$FUNCNAME: not implemented"
+  local pane_id="$1"
+  local history_file_pattern="$(pane_history_file_path "${pane_id}" "true")"
+  local frequency=$(file_purge_frequency) # max files to keep
+  local return_status=0
+
+  # must have a pane_id!
+  [[ -z "$pane_id" ]] && return 255
+
+  # NOTE: We do not care about the file extension because the history files
+  # are dependent upon their associated state files. If we delete the state
+  # file, then we no longer need the history file, regardless of type.
+  history_file_pattern+='.*'
+
+  _purge_files "$history_file_pattern" "$frequency"
+  return_status=$?
+
+  return $return_status
 }
 
 purge_state_files() {
@@ -113,6 +199,32 @@ purge_state_files() {
 
   _purge_files "$state_file_pattern" "$frequency"
   return_status=$?
+
+  return $return_status
+}
+
+purge_all_files() {
+  local return_status=0
+  local purge_state_rslt
+
+  # purge old states
+  purge_state_files; purge_state_rslt=$?
+  if [[ $purge_state_rslt -ne 0 ]]; then
+    return_status=$purge_state_rslt
+  else
+    while IFS=$'\t' read line_type session_name window_number window_name window_active window_flags pane_index dir pane_active pane_command full_command; do
+      local pane_id="$session_name:$window_number.$pane_index"
+      local rslt
+
+      # purge old buffer files
+      purge_buffer_files "$pane_id"; rslt=$?
+      [[ $rslt -gt $return_status ]] && return_status=$rslt && break
+
+      # purge old history files
+      purge_history_files "$pane_id"; rslt=$?
+      [[ $rslt -gt $return_status ]] && return_status=$rslt && break
+    done < <(dump_panes)
+  fi
 
   return $return_status
 }
@@ -227,58 +339,4 @@ save_pane_buffer() {
   if [[ "$update_status" -eq 1 ]]; then
     ln -fs "$(basename "$buffer_file_path")" "$(last_pane_buffer_file "$pane_id")"
   fi
-}
-
-# translates pane pid to process command running inside a pane
-dump_panes() {
-  local full_command
-  local d=$'\t' # delimiter
-  dump_panes_raw |
-    while IFS=$'\t' read line_type session_name window_number window_name window_active window_flags pane_index dir pane_active pane_command pane_pid; do
-      # check if current pane is part of a maximized window and if the pane is active
-      if [[ "${window_flags}" == *Z* ]] && [[ ${pane_active} == 1 ]]; then
-        # unmaximize the pane
-        tmux resize-pane -Z -t "${session_name}:${window_number}"
-      fi
-      full_command="$(full_command $pane_pid)"
-      echo "${line_type}${d}${session_name}${d}${window_number}${d}${window_name}${d}${window_active}${d}${window_flags}${d}${pane_index}${d}${dir}${d}${pane_active}${d}${pane_command}${d}:${full_command}"
-    done
-}
-
-dump_windows() {
-  tmux list-windows -a -F "$(window_format)"
-}
-
-dump_state() {
-  tmux display-message -p "$(state_format)"
-}
-
-dump_bash_history() {
-  local target_pane_id="$1"
-  local tmxr_dump_flag=false
-
-  # tmxr_runner will set this flag to true, no one else should
-  [[ -n "$2" ]] && tmxr_dump_flag="$2"
-
-  dump_panes |
-    while IFS=$'\t' read line_type session_name window_number window_name window_active window_flags pane_index dir pane_active pane_command full_command; do
-      local pane_id="$session_name:$window_number.$pane_index"
-      [[ -n "$target_pane_id" && "$pane_id" != "$target_pane_id" ]] && continue
-      save_pane_history "$pane_id" "$pane_command" "$full_command" "$tmxr_dump_flag"
-    done
-}
-
-dump_pane_buffers() {
-  local target_pane_id="$1"
-  local tmxr_dump_flag=false
-
-  # tmxr_runner will set this flag to true, no one else should
-  [[ -n "$2" ]] && tmxr_dump_flag="$2"
-
-  dump_panes |
-    while IFS=$'\t' read line_type session_name window_number window_name window_active window_flags pane_index dir pane_active pane_command full_command; do
-      local pane_id="$session_name:$window_number.$pane_index"
-      [[ -n "$target_pane_id" && "$pane_id" != "$target_pane_id" ]] && continue
-      save_pane_buffer "$pane_id" "$pane_command" "$full_command" "$tmxr_dump_flag"
-    done
 }

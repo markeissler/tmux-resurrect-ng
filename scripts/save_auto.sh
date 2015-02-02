@@ -175,7 +175,7 @@ update_state() {
 
 main() {
 	if supported_tmux_version_ok; then
-		local state_rslt trigger_rslt purge_state_rslt
+		local state_rslt trigger_rslt purge_rslt
 		local status_index=0
 		local status_codes=( 'X' '-' 'S' 'R' )
 
@@ -195,8 +195,8 @@ main() {
 		fi
 
 		if [[ $(enable_file_purge_on; echo $?) -eq 0 && $status_index -eq 3 ]]; then
-				# purge old states
-				purge_state_files; purge_state_rslt=$?
+				# purge old state/history/buffer files
+				purge_all_files; purge_rslt=$?
 		fi
 
 		printf "%c\n" ${status_codes[$status_index]};
