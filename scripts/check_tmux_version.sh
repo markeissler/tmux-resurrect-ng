@@ -1,8 +1,5 @@
 #!/usr/bin/env bash
 
-VERSION="$1"
-UNSUPPORTED_MSG="$2"
-
 get_tmux_option() {
   local option=$1
   local default_value=$2
@@ -12,6 +9,10 @@ get_tmux_option() {
   else
     echo "$option_value"
   fi
+}
+
+get_tmux_version() {
+  echo "$(tmux -V)"
 }
 
 # Ensures a message is displayed for 5 seconds in tmux prompt.
@@ -48,32 +49,50 @@ get_digits_from_string() {
   echo "$only_digits"
 }
 
-tmux_version_int() {
-  local tmux_version_string=$(tmux -V)
-  echo "$(get_digits_from_string "$tmux_version_string")"
-}
-
-unsupported_version_message() {
-  if [ -n "$UNSUPPORTED_MSG" ]; then
-    echo "$UNSUPPORTED_MSG"
-  else
-    echo "Error, Tmux version unsupported! Please install Tmux version $VERSION or greater!"
-  fi
-}
-
 exit_if_unsupported_version() {
   local current_version="$1"
-  local supported_version="$2"
-  if [ "$current_version" -lt "$supported_version" ]; then
-    display_message "$(unsupported_version_message)"
+  local current_version_int=0
+  local supported_version_list=()
+  local supported_version_found=0
+  local supported_version_last=0 # minimum (last) supported version
+  local unsupported_msg="$3"
+
+  # we need a current version and supported version list!
+  [[ -z "$1" || -z "$2" ]] && exit 255
+
+  current_version_int="$(get_digits_from_string "$current_version")"
+  supported_version_list=( $(echo "${2}" | sort -r | uniq) )
+
+  for version in "${supported_version_list[@]}"; do
+    local version_int="$(get_digits_from_string "$version")"
+    [[ -z "$version_int" ]] && break
+
+    supported_version_last="$version"
+    if [[ $version_int -eq $current_version_int ]]; then
+      supported_version_found="$version"
+      break
+    fi
+  done
+
+  if [[ $supported_version_found -eq 0 ]]; then
+    local versions_str="${supported_version_list[*]}"
+    versions_str="${versions_str// /, }"
+    local msg="Installed: $current_version / Required: $versions_str"
+    if [[ -n "$unsupported_msg" ]]; then
+      display_message "$unsupported_msg ($msg)"
+    else
+      display_message "Resurrect Error: Tmux version unsupported! ($msg)"
+    fi
     exit 1
   fi
 }
 
 main() {
-  local supported_version_int="$(get_digits_from_string "$VERSION")"
-  local current_version_int="$(tmux_version_int)"
-  exit_if_unsupported_version "$current_version_int" "$supported_version_int"
+  local supported_version_list="$1"
+  local unsupported_msg="$2"
+  local current_version="$(get_tmux_version)"
+
+  exit_if_unsupported_version "$current_version" "$supported_version_list" "$unsupported_msg"
 }
 
-main
+main "$@"

@@ -1,13 +1,27 @@
 # helpers.sh
 #
 # requires:
-# variables.sh
+#   variables.sh
 #
 
 default_resurrect_dir="$HOME/.tmux/resurrect"
 resurrect_dir_option="@resurrect-dir"
 
-SUPPORTED_VERSION="1.9"
+# TMUX_SUPPORTED_VERSION="1.9"
+
+##
+# tmxr helpers
+##
+
+# this version of tmux-resurrect-ng (tmxr)
+tmxr_version() {
+  echo "$tmxr_version"
+}
+
+# versions of tmux that tmux-resurrect-ng (tmxr) supports
+tmux_versions_list() {
+  printf "%s\n" "${tmux_version_list[@]}"
+}
 
 ##
 # tmux helpers
@@ -209,7 +223,7 @@ pane_trigger_file() {
 # miscellaneous helpers
 ##
 supported_tmux_version_ok() {
-  $CURRENT_DIR/check_tmux_version.sh "$SUPPORTED_VERSION"
+  $CURRENT_DIR/check_tmux_version.sh "$(tmux_versions_list)"
 }
 
 remove_first_char() {

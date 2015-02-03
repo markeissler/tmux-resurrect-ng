@@ -61,6 +61,15 @@ state_format() {
   echo "$format"
 }
 
+version_format() {
+  local delimiter=$'\t'
+  local format
+  format+="vers"
+  format+="${delimiter}"
+  format+="$(tmxr_version)"
+  echo "$format"
+}
+
 dump_panes_raw() {
   tmux list-panes -a -F "$(pane_format)"
 }
@@ -87,6 +96,10 @@ dump_windows() {
 
 dump_state() {
   tmux display-message -p "$(state_format)"
+}
+
+dump_version() {
+  echo "$(version_format)"
 }
 
 dump_pane_histories() {
