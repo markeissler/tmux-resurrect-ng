@@ -11,13 +11,13 @@ ORIGINAL_COMMAND="$1"
 DIRECTORY="$2"
 
 original_command_wo_junk_vars() {
-	echo "$ORIGINAL_COMMAND" |
-		sed 's/RBENV_VERSION[^ ]*//' |
-		sed 's/GREP_COLOR[^ ]*//'    |
-		sed 's/TERM_PROGRAM[^ ]*//'
+  echo "$ORIGINAL_COMMAND" |
+    sed 's/RBENV_VERSION[^ ]*//' |
+    sed 's/GREP_COLOR[^ ]*//'    |
+    sed 's/TERM_PROGRAM[^ ]*//'
 }
 
 main() {
-	echo "$(original_command_wo_junk_vars)"
+  echo "$(original_command_wo_junk_vars)"
 }
 main
