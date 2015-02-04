@@ -1,90 +1,50 @@
 #!/usr/bin/env bash
 
-get_tmux_option() {
-  local option=$1
-  local default_value=$2
-  local option_value=$(tmux show-option -gqv "$option")
-  if [ -z "$option_value" ]; then
-    echo "$default_value"
-  else
-    echo "$option_value"
-  fi
-}
+CURRENT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
-get_tmux_version() {
-  echo "$(tmux -V)"
-}
-
-# Ensures a message is displayed for 5 seconds in tmux prompt.
-# Does not override the 'display-time' tmux option.
-display_message() {
-  local message="$1"
-
-  # display_duration defaults to 5 seconds, if not passed as an argument
-  if [ "$#" -eq 2 ]; then
-    local display_duration="$2"
-  else
-    local display_duration="5000"
-  fi
-
-  # saves user-set 'display-time' option
-  local saved_display_time=$(get_tmux_option "display-time" "750")
-
-  # sets message display time to 5 seconds
-  tmux set-option -gq display-time "$display_duration"
-
-  # displays message
-  tmux display-message "$message"
-
-  # restores original 'display-time' value
-  tmux set-option -gq display-time "$saved_display_time"
-}
-
-# this is used to get "clean" integer version number. Examples:
-# `tmux 1.9` => `19`
-# `1.9a`     => `19`
-get_digits_from_string() {
-  local string="$1"
-  local only_digits="$(echo "$string" | tr -dC '[:digit:]')"
-  echo "$only_digits"
-}
+source "$CURRENT_DIR/variables.sh"
+source "$CURRENT_DIR/helpers.sh"
 
 exit_if_unsupported_version() {
-  local current_version="$1"
-  local current_version_int=0
-  local supported_version_list=()
-  local supported_version_found=0
-  local supported_version_last=0 # minimum (last) supported version
+  local target_version="$1"
+  local version_list=()
   local unsupported_msg="$3"
+  local display_time="10000" # microseconds!
+  local defaultIFS="$IFS"
+  local IFS="$defaultIFS"
+  local return_status=0
+  local return_string=""
 
-  # we need a current version and supported version list!
-  [[ -z "$1" || -z "$2" ]] && exit 255
+  IFS=$' ' version_list=( $2 ) IFS="$defaultIFS"
 
-  current_version_int="$(get_digits_from_string "$current_version")"
-  supported_version_list=( $(echo "${2}" | sort -r | uniq) )
+  # we need a target version and version list!
+  [[ -z "$target_version" || "${#version_list[@]}" -eq 0 ]] && exit 255
 
-  for version in "${supported_version_list[@]}"; do
-    local version_int="$(get_digits_from_string "$version")"
-    [[ -z "$version_int" ]] && break
+  return_string="$(version_in_versionlist "$target_version" "${version_list[*]}")"
+  return_status=$?
 
-    supported_version_last="$version"
-    if [[ $version_int -eq $current_version_int ]]; then
-      supported_version_found="$version"
-      break
-    fi
-  done
+  if [[ $(enable_debug_mode_on; echo $?) -eq 0 ]]; then
+    echo "target tmux version: $target_version" > /tmp/tmxr_chk_version.txt
+    echo " versions supported: ${#version_list[@]}" >> /tmp/tmxr_chk_version.txt
+    echo "unsupported message: $unsupported_msg" >> /tmp/tmxr_chk_version.txt
+    echo "version ck response: $return_string" >> /tmp/tmxr_chk_version.txt
+  fi
 
-  if [[ $supported_version_found -eq 0 ]]; then
-    local versions_str="${supported_version_list[*]}"
-    versions_str="${versions_str// /, }"
-    local msg="Installed: $current_version / Required: $versions_str"
+  if [[ "$return_status" -ne 0 ]]; then
+    local required_versions_str="$(echo "$return_string" \
+      | awk 'BEGIN { FS="],[ ]*" } { print $2; }')"
+    required_versions_str="${required_versions_str#[}"
+    required_versions_str="${required_versions_str%]}"
+    local msg="Installed: $target_version / Required: $required_versions_str"
     if [[ -n "$unsupported_msg" ]]; then
-      display_message "$unsupported_msg ($msg)"
+      display_message "$unsupported_msg ($msg)" "$display_time"
     else
-      display_message "Resurrect Error: Tmux version unsupported! ($msg)"
+      display_message "Resurrect Error: Tmux version unsupported! ($msg)" "$display_time"
     fi
     exit 1
   fi
+
+  return $return_status
 }
 
 main() {
