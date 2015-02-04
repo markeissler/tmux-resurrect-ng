@@ -1,13 +1,30 @@
 # helpers.sh
 #
 # requires:
-# variables.sh
+#   variables.sh
 #
 
 default_resurrect_dir="$HOME/.tmux/resurrect"
 resurrect_dir_option="@resurrect-dir"
 
-SUPPORTED_VERSION="1.9"
+# TMUX_SUPPORTED_VERSION="1.9"
+
+##
+# tmxr helpers
+##
+
+# this version of tmux-resurrect-ng (tmxr)
+tmxr_version() {
+  echo "$tmxr_version"
+}
+
+# versions of tmux that tmux-resurrect-ng (tmxr) supports
+#
+# Returns a space delimited string of records.
+#
+tmux_versions_list() {
+  printf "%s" "${tmux_version_list[*]}"
+}
 
 ##
 # tmux helpers
@@ -22,6 +39,10 @@ get_tmux_option() {
   else
     echo "$option_value"
   fi
+}
+
+get_tmux_version() {
+  echo "$(tmux -V)"
 }
 
 get_session_name() {
@@ -209,7 +230,87 @@ pane_trigger_file() {
 # miscellaneous helpers
 ##
 supported_tmux_version_ok() {
-  $CURRENT_DIR/check_tmux_version.sh "$SUPPORTED_VERSION"
+  "$CURRENT_DIR/check_tmux_version.sh" "$(tmux_versions_list)"
+}
+
+resurrect_file_version_ok() {
+  local resurrect_file_path="$1"
+  local resurrect_file_vers=""
+  local return_status=0
+  local return_string=""
+
+  [[ ! -f "$resurrect_file_path" ]] && return 255
+
+  resurrect_file_vers=<(awk 'BEGIN { FS="\t"; OFS="\t" } /^vers/ { print $2; }' "$resurrect_file_path")
+
+  return_string="$(version_in_versionlist "$resurrect_file_vers" "$(tmux_versions_list)")"
+  return_status=$?
+
+  echo "$return_string"; return $return_status
+}
+
+version_in_versionlist() {
+  local target_version="$1"
+  local target_version_int=0
+  local version_list=()
+  local version_list_match="" # matching version found
+  local version_list_sorted=()
+  local version_newest""      # newest version in list
+  local version_oldest=""     # oldest version in list
+  local defaultIFS="$IFS"
+  local IFS="$defaultIFS"
+  local return_status=0
+  local return_string=""
+
+  IFS=$' ' version_list=( $2 ) IFS="$defaultIFS"
+
+  # we need a target version and version list!
+  [[ -z "$target_version" || "${#version_list[@]}" -eq 0 ]] && exit 255
+
+  target_version_int="$(digits_from_string "$target_version")"
+  version_list_sorted=( $(printf "%s" "${version_list[*]}" | sort -r | uniq) )
+
+  # We iterate over the version list, converting version strings to version ints
+  # (the version number stripped of alpha chars and punctuation), and comparing
+  # the "int" version list value to the "int" target version value. We save both
+  # the first entry and the last entry to establish a range that is returned to
+  # our caller.
+  local _count=0
+  for version in "${version_list_sorted[@]}"; do
+    local version_int="$(digits_from_string "$version")"
+    [[ -z "$version_int" ]] && break
+
+    [[ $_count -eq 0 ]] && version_newest="$version"
+    version_oldest="$version"
+    if [[ $version_int -eq $target_version_int ]]; then
+      version_list_match="$version"
+      break
+    fi
+    (( _count++ ))
+  done
+
+  # return_string format:
+  #   [oldest, newest], [versions]
+  # e.g. not matching
+  #   [1.9a, 3.2], [1.9a, 2.0, 2.1, 3.0, 3.1, 3.2]
+  #
+  if [[ -z "$version_list_match" ]]; then
+    return_status=1
+  fi
+  local version_list_string="${version_list_sorted[@]}"
+  return_string+="[$version_oldest, $version_newest]"
+  return_string+=", [${version_list_string// /, }]"
+
+  echo "$return_string"; return $return_status
+}
+
+# this is used to get "clean" integer version number. Examples:
+# `tmux 1.9` => `19`
+# `1.9a`     => `19`
+digits_from_string() {
+  local string="$1"
+  local only_digits="$(echo "$string" | tr -dC '[:digit:]')"
+  echo "$only_digits"
 }
 
 remove_first_char() {

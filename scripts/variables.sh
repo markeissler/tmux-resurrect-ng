@@ -6,6 +6,12 @@
 
 # variables preceded with "dep_" are deprecrated versions of the same var.
 
+#
+tmxr_version="0.9.0"
+tmux_version_list=(
+  "1.9"
+)
+
 ##
 # key bindings
 ##

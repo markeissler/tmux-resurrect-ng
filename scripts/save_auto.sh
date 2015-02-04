@@ -21,7 +21,8 @@ purge_stale_triggers() {
 save_all_states() {
   local resurrect_file_path="$(resurrect_file_path)"
   mkdir -p "$(resurrect_dir)"
-  dump_panes   >  "$resurrect_file_path"
+  dump_version >  "$resurrect_file_path"
+  dump_panes   >> "$resurrect_file_path"
   dump_windows >> "$resurrect_file_path"
   dump_state   >> "$resurrect_file_path"
   ln -fs "$(basename "$resurrect_file_path")" "$(last_resurrect_file)"
@@ -200,6 +201,9 @@ main() {
     fi
 
     printf "%c\n" ${status_codes[$status_index]};
+  else
+    # tmux version unsupported!
+    echo '!'
   fi
 }
 
