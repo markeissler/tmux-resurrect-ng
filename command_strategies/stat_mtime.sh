@@ -15,7 +15,7 @@ stat_command_flags() {
     Darwin | OSX) ;&
     FreeBSD) ;&
     OpenBSD)
-      echo "-f \"%m\""
+      echo "-f%m"
       ;;
     *)
       echo "-c%Y"
