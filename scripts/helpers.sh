@@ -30,15 +30,33 @@ tmux_versions_list() {
 # tmux helpers
 ##
 
+# check if tmux server is running, returns 255 on failure
+get_tmux_status() {
+  local return_status=0
+  local result=""
+
+  result="$({ tmux show-option -sqv "buffer-limit"; } 2>&1)"
+  [[ $? -ne 0 ]] && return_status=255
+
+  return $return_status
+}
+
 get_tmux_option() {
   local option="$1"
   local default_value="$2"
-  local option_value=$(tmux show-option -gqv "$option")
+  local option_value=""
+  local return_status=0
+
+  option_value="$({ tmux show-option -gqv "$option"; } 2>&1)"
+  [[ $? -ne 0 ]] && return_status=255
+
   if [ -z "$option_value" ]; then
     echo "$default_value"
   else
     echo "$option_value"
   fi
+
+  return $return_status
 }
 
 get_tmux_version() {
