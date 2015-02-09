@@ -9,24 +9,48 @@
 
 CURRENT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
-g_tmxr_directory="/Users/mark/dev/TEST_UNIT/tmxr_TEST"
-g_tmxr_backupdir="$g_tmxr_directory/migrated_files"
-g_tmxr_buffer_extension=".ans"  # or .txt
-g_tmxr_history_extension=".bsh" # or .txt
-g_tmxr_state_extension=".txt"
+source "$CURRENT_DIR/../scripts/variables.sh"
+source "$CURRENT_DIR/../scripts/helpers.sh"
+source "$CURRENT_DIR/../scripts/file_helpers.sh"
 
-stat_command_flags() {
-  case $(uname -s) in
-    Darwin | OSX) ;&
-    FreeBSD) ;&
-    OpenBSD)
-      echo "-f%m"
-      ;;
-    *)
-      echo "-c%Y"
-      ;;
-  esac
-}
+# override runtime resurrect options
+#
+# Setting "static" parameters allows you to run this script without the tmux
+# server running, but will also ignore default resurrect settings or those that
+# may have been normally set as a resurrect optin in tmux.conf.
+#
+# This means that if you set one static parameter, you must set all of them.
+#
+# While setting file extensions to ".txt" may not impact operation today, this
+# is not guaranteed behavior for future releases.
+#
+# Normally, it is best to leave these settings undefined (commented out) or set
+# to zero-length strings.
+#
+
+# override the runtime resurrect directory setting
+#
+# The raw default is "$HOME/.tmux/resurrect".
+#
+#g_tmxr_directory_static="/Users/mark/dev/TEST_UNIT/tmxr_TEST"
+g_tmxr_directory_static=""
+
+# override the runtime history file name extension
+#
+# The raw default is ".ans" since ansi buffers are enabled by default.
+#
+#g_tmxr_buffer_extension_static=".ans"
+g_tmxr_buffer_extension_static="" # .ans (ansi enabled), .txt (ansi disabled)
+
+##############################################################################
+###### NO SERVICABLE PARTS BELOW
+##############################################################################
+g_tmxr_directory="$g_tmxr_directory_static"
+g_tmxr_backupdir="$g_tmxr_directory/migrated_files"
+# file extensions
+g_tmxr_buffer_extension="$g_tmxr_buffer_extension_static"
+g_tmxr_history_extension=".bsh" # .bsh (bash), .txt (non-specific shell)
+g_tmxr_state_extension=".txt"
 
 # extract a list of unique pane ids from a list of file paths
 find_paneids_from_files() {
@@ -43,12 +67,6 @@ find_paneids_from_files() {
   # we need a file list!
   [[ "${#file_list[@]}" -eq 0 ]] && return 255
 
-  # echo "tmxr_1418676130_buffer-_default:3.2.ans" \
-  #   | sed -E -e "s/^.*-([[:alnum:][:punct:]]+:[[:digit:]]+\.[[:digit:]]+)(\.[[:alpha:]]+)*$/\1/"
-
-  # echo "tmux_buffer-_default:1.1" \
-  #   | sed -E -e "s/^.*-([[:alnum:][:punct:]]+:[[:digit:]]+\.[[:digit:]]+)(\.[[:alpha:]]+)*$/\1/"
-  #
   # delete non-matching lines (where substitution fails)
   #   -e 'tx' -e 'd' -e ':x'
   # where...
@@ -111,7 +129,7 @@ rename_history_files() {
     printf "renaming: %s\n" "${_file_basename}"
 
     ## get age of file (stat)
-    _mtime="$(stat "$(stat_command_flags)" "${_file}")"
+    _mtime="$(stat_mtime "${_file}")"
 
     ## translate old name to new name
     _file_renamed="$(echo "${_file_basename}" \
@@ -170,7 +188,7 @@ rename_buffer_files() {
     printf "renaming: %s\n" "${_file_basename}"
 
     ## get age of file (stat)
-    _mtime="$(stat "$(stat_command_flags)" "${_file}")"
+    _mtime="$(stat_mtime "${_file}")"
 
     ## translate old name to new name
     _file_renamed="$(echo "${_file_basename}" \
@@ -231,7 +249,7 @@ rename_state_files() {
     printf "renaming: %s\n" "${_file_basename}"
 
     ## get age of file (stat)
-    _mtime="$(stat "$(stat_command_flags)" "${_file}")"
+    _mtime="$(stat_mtime "${_file}")"
 
     _file_renamed="$(echo "${_file_basename}" \
       | sed -E -e "s/^tmux_resurrect_([[:alnum:][:punct:]]+\.txt$)/tmxr_${_mtime}/")"
@@ -370,14 +388,72 @@ remove_files() {
 
 main() {
   local status=0
+  local static_settings=( \
+    "g_tmxr_directory_static" \
+    "g_tmxr_buffer_extension_static" \
+  )
 
-  # NOTE: What we should be doing is declaring several arrays here:
-  # 1 - original state files
-  # 2 - original buffer files
-  # 3 - original history files
-  # 4 - renamed files
-  #
-  # We also need to store the "last" state file link.
+  echo "Running tmux-resurrect to tmux-resurrect-ng migration..."
+
+  echo "Checking configuration"
+
+  # check if some, but not all static settings have been set
+  local _static_set=0
+  for _static_setting in "${static_settings[@]}"; do
+    [[ -n "${!_static_setting}" ]] && (( _static_set++ ))
+  done
+  if [[ ${_static_set} -gt 0 && ${_static_set} -ne ${#static_settings[@]} ]]; then
+    printf "\n"
+    printf "ERROR: You have set some but not all static settings. Either set all\n"
+    printf "       static settings or set none.\n"
+    printf "\n"
+    printf "The following static settings are available:\n"
+    printf "\n"
+    printf "       %s\n" "${static_settings[@]}"
+    printf "\n"
+    printf "Aborting. Migration failed.\n"
+    return 1
+  fi
+  # check if we need tmux server running
+  if [[ ${_static_set} -eq 0 ]]; then
+    if [[ $(get_tmux_status; echo $?) -ne 0 ]]; then
+      printf "\n"
+      printf "ERROR: Static settings not specified and tmux server is unreachable.\n"
+      printf "       Either set static settings or start tmux server.\n"
+      printf "\n"
+      return 1
+      printf "Aborting. Migration failed.\n"
+    fi
+
+    # get tmxr resurrect directory settings
+    g_tmxr_directory="$(resurrect_dir)"
+
+    # get tmxr buffer extension setting
+    if [[ $(enable_pane_ansi_buffers_on; echo $?) -eq 0 ]]; then
+      g_tmxr_buffer_extension=".ans"
+    else
+      g_tmxr_buffer_extension=".txt"
+    fi
+  fi
+  unset _static_set
+
+  # check if tmux resurrect directory is invalid
+  if [[ -z "${g_tmxr_directory}" || ! -d "${g_tmxr_directory}" ]]; then
+    printf "\n"
+    printf "ERROR: Invalid tmux resurrect directory specified.\n"
+    printf "       static settings or set none.\n"
+    printf "\n"
+    printf "The following directory setting is configured:\n"
+    printf "\n"
+    printf "       %s\n" "${g_tmxr_directory}"
+    printf "\n"
+    printf "Aborting. Migration failed.\n"
+    return 1
+  fi
+
+  # re-configure backup directory
+  g_tmxr_backupdir="$g_tmxr_directory/migrated_files"
+
   #
   # We begin by gathering a list of current files for:
   #   state
