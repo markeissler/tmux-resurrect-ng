@@ -6,12 +6,11 @@ source "$CURRENT_DIR/variables.sh"
 source "$CURRENT_DIR/helpers.sh"
 source "$CURRENT_DIR/proc_helpers.sh"
 
-# check if we just started, if so, check if we need to restore a previous
-# session, otherwise, run save-auto.
-
 # setup the status-right in .tmux.conf
+#
 # append the following to the very end of the status-right configuration:
 #   [#(~/dev/tmux-resurrect/scripts/save_auto.sh)]
+#
 # example:
 # set -g status-right "...#[default][#(~/dev/tmux-resurrect/scripts/save_auto.sh)]"
 
@@ -23,8 +22,15 @@ main() {
   local status_index=0
   local status_codes=( 'X' '-' 'S' 'R' '?' '!' )
 
-  echo "S: $session_time" > /tmp/sess.out
-  echo "F: $frequency_sec" >> /tmp/sess.out
+  #
+  # status index
+  #   0 - disabled
+  #   1 - enabled, pending progress
+  #   2 - state saved/restored (not used for restore)
+  #   3 - state, buffer, history saved/restored
+  # 254 - error
+  # 255 - fatal
+  #
 
   if [[ $session_time -lt 0 ]]; then
     #
