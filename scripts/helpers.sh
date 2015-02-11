@@ -147,9 +147,9 @@ enable_save_auto_on() {
   [ "$(save_auto_frequency)" -ne 0 ]
 }
 
-enable_bash_history_on() {
-  local option="$(get_tmux_option "$enable_bash_history_option" "$default_enable_bash_history")"
-  local optdep="$(get_tmux_option "$dep_enable_bash_history_option" "")"
+enable_pane_history_on() {
+  local option="$(get_tmux_option "$enable_pane_history_option" "$default_enable_pane_history")"
+  local optdep="$(get_tmux_option "$dep_enable_pane_history_option" "")"
   [[ -n "$optdep" && "$optdep" == "on" ]] || [ "$option" == "on" ]
 }
 

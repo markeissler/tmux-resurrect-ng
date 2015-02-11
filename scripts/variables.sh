@@ -102,9 +102,9 @@ default_enable_restore_auto="on"
 #
 # Only works with BASH.
 #
-enable_bash_history_option="@resurrect-enable-bash-history"
-default_enable_bash_history="off"
-dep_enable_bash_history_option="@resurrect-save-bash-history"
+enable_pane_history_option="@resurrect-enable-pane-history"
+default_enable_pane_history="off"
+dep_enable_pane_history_option="@resurrect-save-bash-history"
 
 # Save pane buffers
 #

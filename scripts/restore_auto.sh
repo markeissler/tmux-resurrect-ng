@@ -12,7 +12,7 @@ restore_all() {
 
   restore_all_panes
   restore_pane_layout_for_each_window >/dev/null 2>&1
-  if enable_bash_history_on; then
+  if enable_pane_history_on; then
     restore_pane_histories
   fi
   if enable_pane_buffers_on; then
