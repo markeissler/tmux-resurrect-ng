@@ -178,7 +178,16 @@ main() {
   if supported_tmux_version_ok; then
     local state_rslt trigger_rslt purge_rslt
     local status_index=0
-    local status_codes=( 'X' '-' 'S' 'R' )
+
+    #
+    # status index
+    #   0 - disabled
+    #   1 - enabled, pending progress
+    #   2 - state saved (state-recoverable)
+    #   3 - state, buffer, history saved (recoverable)
+    # 254 - error
+    # 255 - fatal
+    #
 
     if [[ $(enable_save_auto_on; echo $?) -eq 0 ]]; then
       # save_auto is enabled, bump up status_index
@@ -199,12 +208,15 @@ main() {
       # purge old state/history/buffer files
       purge_all_files; purge_rslt=$?
     fi
-
-    printf "%c\n" ${status_codes[$status_index]};
   else
     # tmux version unsupported!
-    echo '!'
+    status_index=255
   fi
+
+  return $status_index
 }
 
-main
+main "$@"
+
+# main provides a return value to pass on to caller
+exit $?

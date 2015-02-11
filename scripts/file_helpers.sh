@@ -2,7 +2,7 @@
 #
 # requires:
 #   variables.sh
-# helpers.sh
+#   helpers.sh
 #
 
 _stat_mtime_command_strategy_file() {

@@ -131,6 +131,11 @@ enable_file_purge_on() {
   [ "$(file_purge_frequency)" -ne 0 ]
 }
 
+enable_restore_auto_on() {
+  local option="$(get_tmux_option "$enable_restore_auto_option" "$default_enable_restore_auto")"
+  [ "$option" == "on" ]
+}
+
 save_auto_frequency() {
   local frequency="$(get_tmux_option "$save_auto_frequency_option" "$default_save_auto_frequency")"
   [[ $frequency -lt 0 ]] && frequency="0"
