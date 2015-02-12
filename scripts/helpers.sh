@@ -178,9 +178,7 @@ resurrect_dir() {
 }
 
 resurrect_file_stub() {
-  local format
-  format+="tmxr_"
-  echo "$format"
+  echo "tmxr_"
 }
 
 resurrect_file_path() {
