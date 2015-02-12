@@ -38,8 +38,6 @@ main() {
     status_index=5
   elif [[ ( $status_interval -gt 0 && $session_time -lt $status_interval ) \
     || ( $status_interval -eq 0 && $session_time -lt 5 ) ]]; then
-  echo "S: $session_time" > /tmp/sess.out
-  echo "F: $status_interval" >> /tmp/sess.out
 
     #
     # run restore_auto:
