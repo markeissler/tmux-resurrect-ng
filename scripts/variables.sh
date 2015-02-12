@@ -60,6 +60,9 @@ inline_strategy_token="->"
 save_command_strategy_option="@resurrect-save-command-strategy"
 default_save_command_strategy="ps"
 
+ps_session_etime_command_strategy_option="@resurrect-ps-session-etime-command-strategy"
+default_ps_session_etime_command_strategy="ps_session_etime"
+
 stat_mtime_command_strategy_option="@resurrect-stat-mtime-command-strategy"
 default_stat_mtime_command_strategy="stat_mtime"
 
@@ -88,13 +91,20 @@ default_file_purge_frequency="5"
 save_auto_frequency_option="@resurrect-save-auto-frequency"
 default_save_auto_frequency="5"
 
+# Auto restore previous sessions
+#
+# Only works with BASH.
+#
+enable_restore_auto_option="@resurrect-enable-restore-auto"
+default_enable_restore_auto="on"
+
 # Save pane shell history
 #
 # Only works with BASH.
 #
-enable_bash_history_option="@resurrect-enable-bash-history"
-default_enable_bash_history="off"
-dep_enable_bash_history_option="@resurrect-save-bash-history"
+enable_pane_history_option="@resurrect-enable-pane-history"
+default_enable_pane_history="off"
+dep_enable_pane_history_option="@resurrect-save-bash-history"
 
 # Save pane buffers
 #

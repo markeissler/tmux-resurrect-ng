@@ -87,6 +87,10 @@ get_pane_command() {
   tmux display-message -t "$pane_id" -p "#{pane_current_command}"
 }
 
+get_status_interval() {
+  echo $(get_tmux_option "status-interval" "0")
+}
+
 # Ensures a message is displayed for 5 seconds in tmux prompt.
 # Does not override the 'display-time' tmux option.
 display_message() {
@@ -131,6 +135,11 @@ enable_file_purge_on() {
   [ "$(file_purge_frequency)" -ne 0 ]
 }
 
+enable_restore_auto_on() {
+  local option="$(get_tmux_option "$enable_restore_auto_option" "$default_enable_restore_auto")"
+  [ "$option" == "on" ]
+}
+
 save_auto_frequency() {
   local frequency="$(get_tmux_option "$save_auto_frequency_option" "$default_save_auto_frequency")"
   [[ $frequency -lt 0 ]] && frequency="0"
@@ -142,9 +151,9 @@ enable_save_auto_on() {
   [ "$(save_auto_frequency)" -ne 0 ]
 }
 
-enable_bash_history_on() {
-  local option="$(get_tmux_option "$enable_bash_history_option" "$default_enable_bash_history")"
-  local optdep="$(get_tmux_option "$dep_enable_bash_history_option" "")"
+enable_pane_history_on() {
+  local option="$(get_tmux_option "$enable_pane_history_option" "$default_enable_pane_history")"
+  local optdep="$(get_tmux_option "$dep_enable_pane_history_option" "")"
   [[ -n "$optdep" && "$optdep" == "on" ]] || [ "$option" == "on" ]
 }
 
@@ -169,9 +178,7 @@ resurrect_dir() {
 }
 
 resurrect_file_stub() {
-  local format
-  format+="tmxr_"
-  echo "$format"
+  echo "tmxr_"
 }
 
 resurrect_file_path() {
@@ -180,6 +187,9 @@ resurrect_file_path() {
 
   # globstamp instead of timestamp?
   [[ -n "$1" && "$1" = true ]] && timestamp="$globstamp"
+
+  # caller supplied timestamp?
+  [[ -n "$2" && "$1" = false ]] && timestamp="$2"
 
   echo "$(resurrect_dir)/$(resurrect_file_stub)${timestamp}.txt"
 }
@@ -198,6 +208,9 @@ pane_history_file_path() {
 
   # globstamp instead of timestamp?
   [[ -n "$2" && "$2" = true ]] && timestamp="$globstamp"
+
+  # caller supplied timestamp?
+  [[ -n "$3" && "$2" = false ]] && timestamp="$3"
 
   echo "$(resurrect_dir)/$(resurrect_file_stub)${timestamp}_history-${pane_id}"
 }
@@ -222,6 +235,9 @@ pane_buffer_file_path() {
   # globstamp instead of timestamp?
   [[ -n "$2" && "$2" = true ]] && timestamp="$globstamp"
 
+  # caller supplied timestamp?
+  [[ -n "$3" && "$2" = false ]] && timestamp="$3"
+
   echo "$(resurrect_dir)/$(resurrect_file_stub)${timestamp}_buffer-${pane_id}"
 }
 
@@ -242,6 +258,26 @@ pane_trigger_file() {
   [[ -z "$pane_id" || -z "$pane_tty" ]] && echo "" && return 1
 
   echo "$(resurrect_dir)/.trigger-${pane_id}:${pane_tty}"
+}
+
+##
+# path name parser helpers
+##
+
+# extract the timestamp portion from the filename provided as first arg
+find_timestamp_from_file() {
+  local file_name="$(basename "$1")"
+  local file_timestamp=""
+  local file_timestamp_pattern='s/^.*[_]([[:digit:]]{10,})[._].*$/\1/'
+  local return_status=0
+
+  # must have a file_name!
+  [[ -z "$file_name" ]] && echo "" && return 1
+
+  file_timestamp="$(echo "$file_name" \
+    | sed -E -e "$file_timestamp_pattern" -e 'tx' -e 'd' -e ':x')"
+
+  echo -n "$file_timestamp"; return $return_status
 }
 
 ##

@@ -10,8 +10,8 @@ source "$CURRENT_DIR/spinner_helpers.sh"
 restore_all() {
   restore_all_panes
   restore_pane_layout_for_each_window >/dev/null 2>&1
-  if enable_bash_history_on; then
-    restore_shell_history
+  if enable_pane_history_on; then
+    restore_pane_histories
   fi
   if enable_pane_buffers_on; then
     # ttys need to settle after getting cleared
@@ -27,11 +27,16 @@ restore_all() {
 }
 
 main() {
-  if supported_tmux_version_ok && check_saved_session_exists; then
-    start_spinner "Restoring..." "Tmux restore complete!"
-    restore_all
-    stop_spinner
-    display_message "Tmux restore complete!"
+  if supported_tmux_version_ok; then
+    if check_saved_session_exists; then
+      start_spinner "Restoring..." "Tmux restore complete!"
+      restore_all
+      stop_spinner
+      display_message "Tmux restore complete!"
+    else
+      # session file missing!
+      display_message "Tmux resurrect file not found!"
+    fi
   fi
 }
 main
