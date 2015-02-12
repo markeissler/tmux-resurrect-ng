@@ -87,6 +87,10 @@ get_pane_command() {
   tmux display-message -t "$pane_id" -p "#{pane_current_command}"
 }
 
+get_status_interval() {
+  echo $(get_tmux_option "status-interval" "0")
+}
+
 # Ensures a message is displayed for 5 seconds in tmux prompt.
 # Does not override the 'display-time' tmux option.
 display_message() {
