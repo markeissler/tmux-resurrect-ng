@@ -27,11 +27,16 @@ restore_all() {
 }
 
 main() {
-  if supported_tmux_version_ok && check_saved_session_exists; then
-    start_spinner "Restoring..." "Tmux restore complete!"
-    restore_all
-    stop_spinner
-    display_message "Tmux restore complete!"
+  if supported_tmux_version_ok; then
+    if check_saved_session_exists; then
+      start_spinner "Restoring..." "Tmux restore complete!"
+      restore_all
+      stop_spinner
+      display_message "Tmux restore complete!"
+    else
+      # session file missing!
+      display_message "Tmux resurrect file not found!"
+    fi
   fi
 }
 main
