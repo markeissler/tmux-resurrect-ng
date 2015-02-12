@@ -104,31 +104,53 @@ dump_version() {
 
 dump_pane_histories() {
   local target_pane_id="$1"
+  local state_file_path_link="$(last_resurrect_file)"
+  local state_file_path_link_rslv="" # resolved file link path
+  local timestamp=""
   local tmxr_dump_flag=false
 
   # tmxr_runner will set this flag to true, no one else should
   [[ -n "$2" ]] && tmxr_dump_flag="$2"
 
+  # resolve the file path link
+  state_file_path_link_rslv="$(readlink -n $state_file_path_link)"
+
+  # get timestamp from last state file
+  if [[ $? -eq 0 ]]; then
+    timestamp="$(find_timestamp_from_file "$state_file_path_link_rslv")"
+  fi
+
   dump_panes |
     while IFS=$'\t' read line_type session_name window_number window_name window_active window_flags pane_index dir pane_active pane_command full_command; do
       local pane_id="$session_name:$window_number.$pane_index"
       [[ -n "$target_pane_id" && "$pane_id" != "$target_pane_id" ]] && continue
-      save_pane_history "$pane_id" "$pane_command" "$full_command" "$tmxr_dump_flag"
+      save_pane_history "$pane_id" "$pane_command" "$full_command" "$tmxr_dump_flag" "$timestamp"
     done
 }
 
 dump_pane_buffers() {
   local target_pane_id="$1"
+  local state_file_path_link="$(last_resurrect_file)"
+  local state_file_path_link_rslv="" # resolved file link path
+  local timestamp=""
   local tmxr_dump_flag=false
 
   # tmxr_runner will set this flag to true, no one else should
   [[ -n "$2" ]] && tmxr_dump_flag="$2"
 
+  # resolve the file path link
+  state_file_path_link_rslv="$(readlink -n $state_file_path_link)"
+
+  # get timestamp from last state file
+  if [[ $? -eq 0 ]]; then
+    timestamp="$(find_timestamp_from_file "$state_file_path_link_rslv")"
+  fi
+
   dump_panes |
     while IFS=$'\t' read line_type session_name window_number window_name window_active window_flags pane_index dir pane_active pane_command full_command; do
       local pane_id="$session_name:$window_number.$pane_index"
       [[ -n "$target_pane_id" && "$pane_id" != "$target_pane_id" ]] && continue
-      save_pane_buffer "$pane_id" "$pane_command" "$full_command" "$tmxr_dump_flag"
+      save_pane_buffer "$pane_id" "$pane_command" "$full_command" "$tmxr_dump_flag" "$timestamp"
     done
 }
 
@@ -247,8 +269,9 @@ save_pane_history() {
   local pane_id="$1"
   local pane_command="$2"
   local full_command="$3"
+  local timestamp="$5"
   local tmxr_dump_flag=false
-  local history_file_path="$(pane_history_file_path "$pane_id")"
+  local history_file_path="$(pane_history_file_path "$pane_id" "false" "$timestamp")"
   local history_file_extension=".txt"
   local update_status=0
 
@@ -290,8 +313,9 @@ save_pane_buffer() {
   local pane_id="$1"
   local pane_command="$2"
   local full_command="$3"
+  local timestamp="$5"
   local tmxr_dump_flag=false
-  local buffer_file_path="$(pane_buffer_file_path "${pane_id}")"
+  local buffer_file_path="$(pane_buffer_file_path "${pane_id}" "false" "$timestamp")"
   local buffer_file_extension=".txt"
   local prompt1 prompt2
   local prompt_len=0

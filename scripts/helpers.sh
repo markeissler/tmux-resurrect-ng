@@ -186,6 +186,9 @@ resurrect_file_path() {
   # globstamp instead of timestamp?
   [[ -n "$1" && "$1" = true ]] && timestamp="$globstamp"
 
+  # caller supplied timestamp?
+  [[ -n "$2" && "$1" = false ]] && timestamp="$2"
+
   echo "$(resurrect_dir)/$(resurrect_file_stub)${timestamp}.txt"
 }
 
@@ -203,6 +206,9 @@ pane_history_file_path() {
 
   # globstamp instead of timestamp?
   [[ -n "$2" && "$2" = true ]] && timestamp="$globstamp"
+
+  # caller supplied timestamp?
+  [[ -n "$3" && "$2" = false ]] && timestamp="$3"
 
   echo "$(resurrect_dir)/$(resurrect_file_stub)${timestamp}_history-${pane_id}"
 }
@@ -227,6 +233,9 @@ pane_buffer_file_path() {
   # globstamp instead of timestamp?
   [[ -n "$2" && "$2" = true ]] && timestamp="$globstamp"
 
+  # caller supplied timestamp?
+  [[ -n "$3" && "$2" = false ]] && timestamp="$3"
+
   echo "$(resurrect_dir)/$(resurrect_file_stub)${timestamp}_buffer-${pane_id}"
 }
 
@@ -247,6 +256,26 @@ pane_trigger_file() {
   [[ -z "$pane_id" || -z "$pane_tty" ]] && echo "" && return 1
 
   echo "$(resurrect_dir)/.trigger-${pane_id}:${pane_tty}"
+}
+
+##
+# path name parser helpers
+##
+
+# extract the timestamp portion from the filename provided as first arg
+find_timestamp_from_file() {
+  local file_name="$(basename "$1")"
+  local file_timestamp=""
+  local file_timestamp_pattern='s/^.*[_]([[:digit:]]{10,})[._].*$/\1/'
+  local return_status=0
+
+  # must have a file_name!
+  [[ -z "$file_name" ]] && echo "" && return 1
+
+  file_timestamp="$(echo "$file_name" \
+    | sed -E -e "$file_timestamp_pattern" -e 'tx' -e 'd' -e ':x')"
+
+  echo -n "$file_timestamp"; return $return_status
 }
 
 ##
