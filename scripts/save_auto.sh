@@ -180,7 +180,7 @@ update_state() {
 }
 
 main() {
-  if supported_tmux_version_ok; then
+  if [[ $(sanity_ok; echo $?) -eq 0 ]]; then
     local state_rslt trigger_rslt purge_rslt
     local status_index=0
 
