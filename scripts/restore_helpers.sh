@@ -143,8 +143,6 @@ restore_pane_history() {
   local pane_id="$1"
   local pane_command="$2"
 
-  if is_pane_registered_as_existing "$pane_id"; then return 0; fi
-
   if [ "$pane_command" = "bash" ]; then
     local pane_id="$session_name:$window_number.$pane_index"
     # tmux send-keys has -R option that should reset the terminal.
@@ -165,8 +163,6 @@ restore_pane_histories() {
 restore_pane_buffer() {
   local pane_id="$1"
   local pane_command="$2"
-
-  if is_pane_registered_as_existing "$pane_id"; then return 0; fi
 
   if [ "$pane_command" = "bash" ]; then
     local pane_id="$session_name:$window_number.$pane_index"
