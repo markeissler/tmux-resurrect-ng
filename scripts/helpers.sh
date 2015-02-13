@@ -358,6 +358,14 @@ version_in_versionlist() {
   echo "$return_string"; return $return_status
 }
 
+purge_trigger_files() {
+  local trigger_file_pattern='.trigger-*'
+
+  rm -f "$(resurrect_dir)/"$trigger_file_pattern > /dev/null 2>&1
+
+  return $?
+}
+
 # this is used to get "clean" integer version number. Examples:
 # `tmux 1.9` => `19`
 # `1.9a`     => `19`
