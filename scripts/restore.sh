@@ -27,7 +27,7 @@ restore_all() {
 }
 
 main() {
-  if supported_tmux_version_ok; then
+  if [[ $(sanity_ok; echo $?) -eq 0 ]]; then
     if check_saved_session_exists; then
       start_spinner "Restoring..." "Tmux restore complete!"
       restore_all

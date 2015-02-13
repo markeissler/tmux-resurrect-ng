@@ -26,7 +26,7 @@ save_all() {
 }
 
 main() {
-  if supported_tmux_version_ok; then
+  if [[ $(sanity_ok; echo $?) -eq 0 ]]; then
     start_spinner "Saving..." "Tmux environment saved!"
     save_all
     stop_spinner

@@ -284,8 +284,16 @@ save_pane_history() {
   fi
   history_file_path+="$history_file_extension"
 
+  # When a pane's prompt_runner calls dump_pane_histories and dump_pane_buffers,
+  # the pane_full_command will appear as a login shell (e.g. :-bash) without an
+  # argument. This is because prompt_runner calls a bash function (tmxr_runner).
+  #
+  # When panes are dumped without prompt_runner, we a state file is written, the
+  # pane_full_command will be empty (":", just a colon) when a pane is idling at
+  # a shell prompt.
+  #
   if [ "$pane_command" = "bash" ]; then
-    if [[ "$tmxr_dump_flag" = true ]]; then
+    if [[ "$tmxr_dump_flag" = true  && "$full_command" = ":-bash" ]]; then
       # If tmxr_dump_flag is true, the history command is intended to be run
       # from a local function within the target pane. Likely PROMPT_COMMAND.
       history -w "$history_file_path"
@@ -331,9 +339,18 @@ save_pane_buffer() {
   fi
   buffer_file_path+="$buffer_file_extension"
 
+  # When a pane's prompt_runner calls dump_pane_histories and dump_pane_buffers,
+  # the pane_full_command will appear as a login shell (e.g. :-bash) without an
+  # argument. This is because prompt_runner calls a bash function (tmxr_runner).
+  #
+  # When panes are dumped without prompt_runner, we a state file is written, the
+  # pane_full_command will be empty (":", just a colon) when a pane is idling at
+  # a shell prompt.
+  #
   if [[ "$pane_command" = "bash" ]]; then
-    if [[ "$tmxr_dump_flag" = true || "$full_command" = ":" ]]; then
-      [[ -f "${buffer_file_path}" ]] && rm "${buffer_file_path}" &> /dev/null
+    if [[ "$full_command" = ":" \
+      || ( "$tmxr_dump_flag" = true && "$full_command" = ":-bash" ) ]]; then
+      # adjust tmux capture options
       local capture_color_opt=""
       if enable_pane_ansi_buffers_on; then
         capture_color_opt="-e "

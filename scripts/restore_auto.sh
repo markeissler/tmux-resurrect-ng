@@ -31,7 +31,7 @@ restore_all() {
 }
 
 main() {
-  if supported_tmux_version_ok; then
+  if [[ $(sanity_ok; echo $?) -eq 0 ]]; then
     local restore_rslt
     local status_index=0
 

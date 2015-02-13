@@ -31,6 +31,8 @@ save_all_states() {
 
 update_pane_trigger() {
   local pane_id="$1"
+  local pane_command="$2"
+  local pane_full_command="$3"
   local pane_tty="$(get_pane_tty "$pane_id")"
   local buffer_file_pattern="$(pane_buffer_file_path "${pane_id}" "true")"
   local buffer_file_path_list=()
@@ -47,6 +49,9 @@ update_pane_trigger() {
 
   # must have a pane_id!
   [[ -z "$pane_tty" ]] && return 255
+
+  # only trigger if current command is a shell
+  [[ "$pane_command" != "bash" || "$pane_full_command" != ":" ]] && return $return_status
 
   # figure out buffer file extension
   if [[ $(enable_pane_ansi_buffers_on; echo $?) -eq 0 ]]; then
@@ -117,7 +122,7 @@ update_pane_triggers() {
   local return_status=0
 
   while IFS=$'\t' read line_type session_name window_number window_name window_active window_flags pane_index dir pane_active pane_command full_command; do
-    update_pane_trigger "$session_name:$window_number.$pane_index"
+    update_pane_trigger "$session_name:$window_number.$pane_index" "$pane_command" "$full_command"
     local rslt=$?
     [[ $rslt -gt $return_status ]] && return_status=$rslt
   done < <(dump_panes)
@@ -175,7 +180,7 @@ update_state() {
 }
 
 main() {
-  if supported_tmux_version_ok; then
+  if [[ $(sanity_ok; echo $?) -eq 0 ]]; then
     local state_rslt trigger_rslt purge_rslt
     local status_index=0
 

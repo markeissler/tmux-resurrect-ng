@@ -283,6 +283,31 @@ find_timestamp_from_file() {
 ##
 # miscellaneous helpers
 ##
+sanity_ok() {
+  local resurrect_dir="$(resurrect_dir)"
+  local status_index=0
+
+  #
+  # status index
+  #   0 - ok
+  #   1 - bad tmux version
+  #   2 - bad file system
+  # 255 - fatal (reserved)
+  #
+
+  if [[ $(supported_tmux_version_ok; echo $?) -eq 1 ]]; then
+    (( status_index++ ))
+  fi
+
+  if [[ $status_index -eq 0 && ! -d "$resurrect_dir" ]]; then
+    # tmxr directory, try to recover by creating one
+    mkdir -p "$resurrect_dir"
+    [[ $? -ne 0 ]] && (( status_index++ ))
+  fi
+
+  return $status_index
+}
+
 supported_tmux_version_ok() {
   "$CURRENT_DIR/check_tmux_version.sh" "$(tmux_versions_list)"
 }
@@ -356,6 +381,14 @@ version_in_versionlist() {
   return_string+=", [${version_list_string// /, }]"
 
   echo "$return_string"; return $return_status
+}
+
+purge_trigger_files() {
+  local trigger_file_pattern='.trigger-*'
+
+  rm -f "$(resurrect_dir)/"$trigger_file_pattern > /dev/null 2>&1
+
+  return $?
 }
 
 # this is used to get "clean" integer version number. Examples:

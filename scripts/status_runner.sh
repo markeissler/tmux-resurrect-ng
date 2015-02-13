@@ -39,6 +39,9 @@ main() {
   elif [[ ( $status_interval -gt 0 && $session_time -lt $status_interval ) \
     || ( $status_interval -eq 0 && $session_time -lt 5 ) ]]; then
 
+    # clear all triggers
+    purge_trigger_files
+
     #
     # run restore_auto:
     #   - save_auto enabled and session_time less than frequency
