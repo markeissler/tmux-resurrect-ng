@@ -1,7 +1,7 @@
 # Tmux Resurrect NG
 Automated save and restore of `tmux` session window and pane geometry (layout and placement) along with save and restore of pane shell command line history buffers and command line history (for `bash`).
 
->**tmux-resurrect-ng** is only compatible with the BASH shell. If your default shell is not `bash` (e.g. zsh, ksh, csh) then this plugin is not for you; you should consider the original [tmux-resurrect](https://github.com/tmux-plugins/tmux-resurrect) project instead.
+>**tmux-resurrect-ng** is only compatible with the BASH shell. If your default shell is not `bash` (e.g. zsh, ksh, csh) then this plugin is not for you; you should consider the original [pic](https://github.com/tmux-plugins/tmux-resurrect) project instead.
 
 Okay, so that's not exactly true. As of v0.9.0, **tmux-resurrect-ng** still supports manual trigger of save and restore. But that functionality will likely be removed before v1.0.0 is reached.
 
@@ -82,12 +82,17 @@ Permissions should already be setup adequately, but you can run the following co
 The automation offered by **tmux-resurrect-ng** is triggered by the `tmux` status bar and the `bash` prompt. Edit your .tmux.conf file by adding the following snippet to the **end** of your status-right configuration:
 
 ```sh
-[#($HOME/.tmux/tmux-resurrect-ng/scripts/status_runner.sh)]
+[#($HOME/.tmux/plugins/tmux-resurrect-ng/scripts/status_runner.sh)]
 ```
 
 A complete example appears below:
 ```sh
-set -g status-right "#(hostname -s | cut -c 1-23) #[fg=cyan][#(uptime|rev | cut -d":" -f1 | rev | sed s/,//g) ]#[default][#($HOME/.tmux/tmux-resurrect-ng/scripts/status_runner.sh)]"
+set -g status-right "#(hostname -s | cut -c 1-23) #[fg=cyan][#(uptime | rev | cut -d":" -f1 | rev | sed s/,//g) ]#[default][#($HOME/.tmux/plugins/tmux-resurrect-ng/scripts/status_runner.sh)]"
+```
+
+It is recommended to also limit the width of the status-right section:
+```sh
+set -g status-right-length 40
 ```
 
 To configure and load **tmux-resurrect-ng** add the following snippet to the **end** of your `.tmux.conf` file:
@@ -101,7 +106,7 @@ set -g @resurrect-enable-pane-buffers 'on'
 set -g @resurrect-enable-pane-history 'on'
 
 # load tmux-resurrect-ng
-run-shell $HOME/.tmux/tmux-resurrect-ng/resurrect-ng.tmux
+run-shell "$HOME/.tmux/plugins/tmux-resurrect-ng/resurrect-ng.tmux"
 ```
 
 #### Update your .bash_profile file to enable prompt integration
@@ -110,8 +115,8 @@ The following snippet needs to be added to the bottom of your `.bash_profile` fi
 ```sh
 # tmux-resurrect-ng prompt_runner for auto save/restore
 if [[ -n "$TMUX" ]]; then
-  source $HOME/.tmux/plugins/tmux-resurrect-ng/scripts/prompt_runner.sh
-  export PROMPT_COMMAND="${PROMPT_COMMAND}; tmxr_runner"
+  source "$HOME/.tmux/plugins/tmux-resurrect-ng/scripts/prompt_runner.sh"
+  export PROMPT_COMMAND="${PROMPT_COMMAND}${PROMPT_COMMAND:+; }tmxr_runner"
 fi
 ```
 
@@ -212,7 +217,7 @@ The **tmux-resurrect-ng** v0.9.0 migration script supports [tmux-resurrect](http
 
 Run the migration script as follows:
 ```sh
->$HOME/.tmux/plugins/tmux-resurrect/utilities/tmxr_migrate.sh
+>$HOME/.tmux/plugins/tmux-resurrect-ng/utilities/tmxr_migrate.sh
 ```
 
 After running the migration script, original files will have been preserved in the following directory:
