@@ -1,187 +1,260 @@
-# Tmux Resurrect
+# Tmux Resurrect NG
+Automated save and restore of `tmux` session window and pane geometry (layout and placement) along with save and restore of pane shell command line history buffers and command line history (for `bash`).
 
-Restore `tmux` environment after a system restart.
+>**tmux-resurrect-ng** is only compatible with the BASH shell. If your default shell is not `bash` (e.g. zsh, ksh, csh) then this plugin is not for you; you should consider the original [pic](https://github.com/tmux-plugins/tmux-resurrect) project instead.
 
-Tmux is great, except when you have to restart the computer. You lose all the
-running programs, working directories, pane layouts etc.
-There are helpful management tools out there, but they require initial
-configuration and continuous updates as your workflow evolves or you start new
-projects.
+Okay, so that's not exactly true. As of v0.9.0, **tmux-resurrect-ng** still supports manual trigger of save and restore. But that functionality will likely be removed before v1.0.0 is reached.
 
-`tmux-resurrect` saves all the little details from your tmux environment so it
-can be completely restored after a system restart (or when you feel like it).
-No configuration is required. You should feel like you never quit tmux.
+##Features
 
-It even (optionally) [restores vim and neovim sessions](#restoring-vim-and-neovim-sessions)!
+Auto save and restore:
 
-### Screencast
+* all session window geometry (windows, panes) and order
+* current working directory for each pane
+* shell command line history for each pane (`bash` only)
+* buffer for each pane (`bash` only)
+* active and alternative session
+* active and alternative window for each session
+* windows with focus
+* active pane for each window
+* programs running within a pane (See: configuration section)
+* resurrect state indicator in tmux status bar
+* migration script to help you move from tmux-resurrect to tmux-resurrect-ng
+* [optional]: restoring vim/neovim sessions
 
-[![screencast screenshot](/video/screencast_img.png)](https://vimeo.com/104763018)
+Auto purge (cleanup):
 
-### Key bindings
+* old state (layout), pane history and buffer files
 
-- `prefix + Ctrl-s` - save
-- `prefix + Ctrl-r` - restore
+Easy migration from [tmux-resurrect](https://github.com/tmux-plugins/tmux-resurrect) to **tmux-resurrect-ng**:
 
-`prefix + Alt-s` and `prefix + Alt-r` key bindings are now deprecated.
+* migration utility script included (See: [Migration](##Migration))
 
-For custom key bindings, add to `.tmux.conf`:
+## Why?
+**tmux-resurrect-ng** is a fork of the super awesome [tmux-resurrect](https://github.com/tmux-plugins/tmux-resurrect) project by Bruno Sutic. Where the original project has a goal aligned with saving and restoring session window geometry when prompted by the user, **tmux-resurrect-ng** natively implements fully automated save and restore, including automated purging of old files. Preserving geometry is awesome but what about saving shell history and pane buffers? This plugin handles both of those requirements!
 
-    set -g @resurrect-save 'S'
-    set -g @resurrect-restore 'R'
+Where [tmux-resurrect](https://github.com/tmux-plugins/tmux-resurrect) has been extended to also save `bash` command line history, **tmux-resurrect-ng** accomplishes this task less intrusively by integrating with the `bash` command prompt to run certain tasks as a function in the background as you work. The benefit of this implementation is that an intrusive `history` write command is never output to your terminal session. While that side effect is possibly nothing more than an annoyance in [tmux-resurrect](https://github.com/tmux-plugins/tmux-resurrect), it's actually problematic for **tmux-resurrect-ng** because this plugin actually preserves the pane buffers as well! I don't know about you but I scroll back through my terminal windows just as often as I refer back to my command line history so pane buffers are important to me and the last thing I want to see is stuff that I didn't type.
 
-### About
 
-This plugin goes to great lengths to save and restore all the details from your
-`tmux` environment. Here's what's been taken care of:
+#### Pane buffers vs command line history
+What's the difference between the pane buffer and the command line history? Lots! The command line history is simply a log of all previous commands you've typed in. To access the command line history you need to either run the `history` command or incrementally scroll through the history (usually, using the up and down arrows on your keyboard). The pane buffer is the *visual* content of the terminal window. **tmux-resurrect-ng** preserves all ansi color codes when saving pane buffers.
 
-- all sessions, windows, panes and their order
-- current working directory for each pane
-- **exact pane layouts** within windows (even when zoomed)
-- active and alternative session
-- active and alternative window for each session
-- windows with focus
-- active pane for each window
-- programs running within a pane! More details in the
-  [configuration section](#configuration).
-- restoring vim/neovim sessions (optional). More details in
-  [restoring vim and neovim sessions](#restoring-vim-and-neovim-sessions).
-- restoring bash history (optional, \*experimental*). More details in
-  [restoring bash history](#restoring-bash-history-experimental).
 
-Requirements / dependencies: `tmux 1.9` or higher, `bash`.
+## Installation
+The **tmux-resurrect-ng** plugin is only supported as a manual installation at the moment (it is not currently part of the [tmux-plugins](https://github.com/tmux-plugins) project). Manual installation requires the following steps:
 
-`tmux-resurrect` is idempotent! It will not try to restore panes or windows that
-already exist.
+* Clone the **tmux-resurrect-ng** repo
+* Set permissions
+* Update your `.tmux.conf` file to enable status bar integration
+* Update your `.bash_profile` file to enable prompt integration
+* Exit tmux and kill the server
+* Launch a new named session
 
-### FAQ
 
-> I have a problem: first pane/window is not restoring!
+#### Clone the repo
+The appropriate place to install tmux plugins is within your `.tmux` directory under plugins:
 
-Check out
-[this wiki page](https://github.com/tmux-plugins/tmux-resurrect/wiki/Help:-issues-with-the-first-window)
-for the explanation and problem solution.
+```sh
+>mkdir -p $HOME/.tmux/plugins
+>git clone https://github.com/markeissler/tmux-resurrect-ng.git $HOME/.tmux/plugins/tmux-resurrect-ng
+```
 
-### Installation with [Tmux Plugin Manager](https://github.com/tmux-plugins/tpm) (recommended)
+#### Set permissions
+Permissions should already be setup adequately, but you can run the following commands to be sure:
 
-Add plugin to the list of TPM plugins in `.tmux.conf`:
+```sh
+>chown -R $USER:$USER $HOME/.tmux
+>chmod 755 \
+ $HOME/.tmux/plugins/tmux-resurrect-ng/scripts/check_tmux_version.sh \
+ $HOME/.tmux/plugins/tmux-resurrect-ng/scripts/prompt_runner.sh \
+ $HOME/.tmux/plugins/tmux-resurrect-ng/scripts/restore_auto.sh \
+ $HOME/.tmux/plugins/tmux-resurrect-ng/scripts/restore.sh \
+ $HOME/.tmux/plugins/tmux-resurrect-ng/scripts/save_auto.sh \
+ $HOME/.tmux/plugins/tmux-resurrect-ng/scripts/save.sh \
+ $HOME/.tmux/plugins/tmux-resurrect-ng/scripts/status_runner.sh \
+ $HOME/.tmux/plugins/tmux-resurrect-ng/scripts/tmux_spinner.sh \
+ $HOME/.tmux/plugins/tmux-resurrect-ng/command_strategies/*.sh \
+ $HOME/.tmux/plugins/tmux-resurrect-ng/save_command_strategies/*.sh \
+ $HOME/.tmux/plugins/tmux-resurrect-ng/strategies/*.sh
+```
 
-    set -g @tpm_plugins '           \
-      tmux-plugins/tpm              \
-      tmux-plugins/tmux-resurrect   \
-    '
+#### Update your .tmux.conf file
+The automation offered by **tmux-resurrect-ng** is triggered by the `tmux` status bar and the `bash` prompt. Edit your .tmux.conf file by adding the following snippet to the **end** of your status-right configuration:
 
-Hit `prefix + I` to fetch the plugin and source it. You should now be able to
-use the plugin.
+```sh
+[#($HOME/.tmux/plugins/tmux-resurrect-ng/scripts/status_runner.sh)]
+```
 
-### Manual Installation
+A complete example appears below:
+```sh
+set -g status-right "#(hostname -s | cut -c 1-23) #[fg=cyan][#(uptime | rev | cut -d":" -f1 | rev | sed s/,//g) ]#[default][#($HOME/.tmux/plugins/tmux-resurrect-ng/scripts/status_runner.sh)]"
+```
 
-Clone the repo:
+It is recommended to also limit the width of the status-right section:
+```sh
+set -g status-right-length 40
+```
 
-    $ git clone https://github.com/tmux-plugins/tmux-resurrect ~/clone/path
+To configure and load **tmux-resurrect-ng** add the following snippet to the **end** of your `.tmux.conf` file:
 
-Add this line to the bottom of `.tmux.conf`:
 
-    run-shell ~/clone/path/resurrect.tmux
+```sh
+# enable tmux-resurrect-ng pane buffers
+set -g @resurrect-enable-pane-buffers 'on'
 
-Reload TMUX environment:
+# enable tmux-resurrect-ng pane history
+set -g @resurrect-enable-pane-history 'on'
 
-    # type this in terminal
-    $ tmux source-file ~/.tmux.conf
+# load tmux-resurrect-ng
+run-shell "$HOME/.tmux/plugins/tmux-resurrect-ng/resurrect-ng.tmux"
+```
 
-You should now be able to use the plugin.
+#### Update your .bash_profile file to enable prompt integration
+The following snippet needs to be added to the bottom of your `.bash_profile` file:
 
-### Configuration
+```sh
+# tmux-resurrect-ng prompt_runner for auto save/restore
+if [[ -n "$TMUX" ]]; then
+  source "$HOME/.tmux/plugins/tmux-resurrect-ng/scripts/prompt_runner.sh"
+  export PROMPT_COMMAND="${PROMPT_COMMAND}${PROMPT_COMMAND:+; }tmxr_runner"
+fi
+```
 
-Configuration is not required, but it enables extra features.
+New `bash` sessions will only load the above snippet if the TMUX environment variable has been set. When `tmux` instantiates a new pane it will add the variable to the pane's environment. The variable will not be visible outside of a tmux pane.
 
-Only a conservative list of programs is restored by default:<br/>
-`vi vim nvim emacs man less more tail top htop irssi`.
+#### Exit tmux and kill the server
+Restarting tmux completely is the easiest way to get up and running following installation:
 
-- Restore additional programs with the setting in `.tmux.conf`:
+```sh
+>tmux kill-server
+```
 
-        set -g @resurrect-processes 'ssh psql mysql sqlite3'
+## Configuration options
+Default settings are considered to be reasonable and, therefore, applicable for most users. The following settings can be adjusted if necessary:
 
-- Programs with arguments should be double quoted:
+|option|default|description|
+|--------------|:---:|-------------------------------------------------|
+|@resurrect-default-processes|(1)|default processes that are restored;<br />see list below |
+|@resurrect-file-purge-frequency|5|number of old state/buffer/history files to keep;<br/>disable feature by setting to 0|
+|@resurrect-save-auto-frequency|5|how often (in minutes) to trigger backups;<br/> disable feature by setting to 0 |
+|@resurrect-enable-restore-auto|on|enable auto-restore mode|
+|@resurrect-enable-pane-history|off|enable pane history save/restore|
+|@resurrect-enable-pane-buffers|off|enable pane buffer save/restore|
+|@resurrect-enable-pane-ansi-buffers|on|enable saving of ansi color buffers|
 
-        set -g @resurrect-processes 'some_program "git log"'
+(1) vi, vim, nvim, emacs, man, less, more, tail, top, htop, irssi
 
-- Start with tilde to restore a program whose process contains target name:
+Only common user options are listed above. Both `@resurrect-enable-pane-history` and `@resurrect-enable-pane-buffers` are disabled by default because only you know if your default shell is set to `bash`.
 
-        set -g @resurrect-processes 'irb pry "~rails server" "~rails console"'
+## Usage
+The goal of **tmux-resurrect-ng** is automation.
 
-- Use `->` to specify a command to be used when restoring a program (useful if
-  the default restore command fails ):
+#### Auto save
+Saving of geometry is 100% automated and will occur every 5 minutes (unless configured otherwise). Saving of pane history and buffers is semi-automated: triggers will be created for panes where history or buffers files have become stale but the user needs to initiate a carriage return in each target pane to initiate history and buffer saves and consequently clear the triggers.
 
-        set -g @resurrect-processes 'some_program "grunt->grunt development"'
 
-- Don't restore any programs:
+During normal use, as you enter commands, these carriage returns will occur as part of your activity and saving of pane history and buffers will occur unobtrusively. Triggers will not be created for panes that cannot be saved/restored. 
 
-        set -g @resurrect-processes 'false'
 
-- Restore **all** programs (be careful with this!):
+#### Auto restore
+Restoration is 100% automated and will occur when a new named tmux session is created using a previously existing name. Window and pane geometry, history, and buffers will be restored from the last backup.
 
-        set -g @resurrect-processes ':all:'
+>NOTE: The **tmux-resurrect-ng** restore behavior differs from that implemented by [tmux-resurrect](https://github.com/tmux-plugins/tmux-resurrect), where the latter will refuse to restore panes that have already been created by the user.
 
-#### Restoring vim and neovim sessions
+#### Auto purge
+Historical backup files will be purged automatically according to the purge frequency setting.
 
-- save vim/neovim sessions. I recommend
-  [tpope/vim-obsession](https://github.com/tpope/vim-obsession) (as almost every
-  plugin, it works for both vim and neovim).
-- in `.tmux.conf`:
+#### Legacy manual save and restore
+As of v0.9.0, **tmux-resurrect-ng** still supports manual trigger of save and restore via legacy key bindings. **This functionality will likely be removed before v1.0.0 is reached. Saved buffer files may include obtrusive calls to the history write command.**
 
-        # for vim
-        set -g @resurrect-strategy-vim 'session'
-        # for neovim
-        set -g @resurrect-strategy-nvim 'session'
+##### Key bindings
 
-`tmux-resurrect` will now restore vim and neovim sessions if `Sessions.vim` file
-is present.
+| command | key binding       |
+|---------|:-----------------:|
+| save    | `prefix + Ctrl-s` |
+| restore | `prefix + Ctrl-r` |
 
-#### Resurrect save dir
+Custom key bindings can be set by adding the following to your `.tmux.conf` file:
 
-By default Tmux environment is saved to a file in `~/.tmux/resurrect` dir.
-Change this with:
+```sh
+set -g @resurrect-save 'S'
+set -g @resurrect-restore 'R'
+```
 
-    set -g @resurrect-dir '/some/path'
+Then reload the `tmux` environment:
 
-#### Restoring bash history (experimental)
+```sh
+>tmux source-file $HOME/.tmux.conf
+```
 
-In `.tmux.conf`:
+## Status
 
-    set -g @resurrect-save-bash-history 'on'
+The **tmux-resurrect-ng** status bar feature will indicate the following states:
 
-Bash `history` for individual panes will now be saved and restored. Due to
-technical limitations, this only works for panes which have no program running in
-foreground when saving. `tmux-resurrect` will send history write command
-to each such pane. To prevent these commands from being added to history themselves,
-add `HISTCONTROL=ignoreboth` to your `.bashrc` (this is set by default in Ubuntu).
+```sh
+  [X] : tmux-resurrect-ng disabled
+  [-] : enabled, pending progress
+  [S] : state (geometry) (for all panes) saved and restorable
+  [R] : state, buffer, history (for all panes), saved and restorable
+  [?] : runtime error
+  [!] : fatal (e.g. tmux version unsupported)
+```
 
-### Other goodies
+During normal operation progress will alternate between [-], [S] and [R]. When a single pane history or buffer file has become stale, status will remain on [S] until the pane's associated trigger has been cleared.
 
-- [tmux-copycat](https://github.com/tmux-plugins/tmux-copycat) - a plugin for
-  regex searches in tmux and fast match selection
-- [tmux-yank](https://github.com/tmux-plugins/tmux-yank) - enables copying
-  highlighted text to system clipboard
-- [tmux-open](https://github.com/tmux-plugins/tmux-open) - a plugin for quickly
-  opening highlighted file or a url
+>The greater the number of panes idling at a shell prompt, the more likely it is that the status will be "stuck" on [S]. This is a limitation that will be addressed in a future release.
 
-### Reporting bugs and contributing
+## Migration
+Moving from [tmux-resurrect](https://github.com/tmux-plugins/tmux-resurrect) to **tmux-resurrect-ng** is simplified using the included migration script. The migration task is necessary only if you care about restoring previous session data before starting **tmux-resurrect-ng** for the first time. **A migration of data files is necessary because all of the file naming schemes have changed.**
 
-Both contributing and bug reports are welcome. Please check out
-[contributing guidelines](CONTRIBUTING.md).
+The **tmux-resurrect-ng** v0.9.0 migration script supports [tmux-resurrect](https://github.com/tmux-plugins/tmux-resurrect) v1.5.0 and will migrate the following files:
 
-### Credits
+|file                               |purpose     |
+|-----------------------------------|------------|
+|tmux_resurrect_TIMESTAMP.txt       |tmux state  |
+|bash_history-SESSION:WINDOW.pane   |bash history|
+|tmux_buffer-SESSION:WINDOW.pane    |pane buffer |
 
-[Mislav Marohnić](https://github.com/mislav) - the idea for the plugin came from his
-[tmux-session script](https://github.com/mislav/dotfiles/blob/2036b5e03fb430bbcbc340689d63328abaa28876/bin/tmux-session).
+Run the migration script as follows:
+```sh
+>$HOME/.tmux/plugins/tmux-resurrect-ng/utilities/tmxr_migrate.sh
+```
 
-### Other
+After running the migration script, original files will have been preserved in the following directory:
 
-Here's another script that tries to solve the same problem:
-[link](http://brainscraps.wikia.com/wiki/Resurrecting_tmux_Sessions_After_Reboot).
-It even has the same name, even though I discovered it only after publishing
-`v1.0` of this plugin.
+```sh
+$HOME/.tmux/resurrect/migrated_files
+```
 
-### License
-[MIT](LICENSE.md)
+To revert back to [tmux-resurrect](https://github.com/tmux-plugins/tmux-resurrect), execute the following commands (after exiting tmux):
+
+```sh
+>tmux kill-server
+>mv $HOME/.tmux/resurrect $HOME/.tmux/resurrect_NEW
+>cp $HOME/.tmux/resurrect_NEW/migrated_files $HOME/.tmux/resurrect
+```
+
+Reconfigure `.tmux.conf` as needed, then restart `tmux`.
+
+## Limitations
+The **tmux-resurrect-ng** plugin is limited by functionality offered by `tmux` and the operating system itself. For the most part this means that save and restore of history and buffers can only be offered for pane shell sessions not actively running a program other than the shell itself. For example, if a pane is running the `top` command the pane geometry will be saved (so the pane itself will be restored) but until the `top` process has ended neither the pane history or buffer will be triggered for backup.
+
+>NOTE: While the pane buffer could be saved, upon restore it would be out-of-sync with the history and potentially confusing to the user.
+   
+These limitations may sound...limiting...but the way we usually make use of the shell (running a command and then sitting idle, then running another command) means there are plenty of opportunities to backup.
+
+It's also important to note that automated backups will not take place for a particular pane until the next carriage return is received at the prompt, while a trigger is in place (.trigger files are created whenever a pane history or buffer file has become stale).
+
+## Compatibility
+**tmux-resurrect-ng** has been developed and tested on OSX (10.10) and Linux (CentOS 7). The primary requirements/dependencies are:
+
+* `bash` 4.0 or higher
+* `tmux` 1.9 or higher
+
+Shell command line history and pane buffer support is currently only supported for BASH.
+
+## Attributions
+The **tmux-resurrect-ng** `tmux` plugin was forked from the original [tmux-resurrect](https://github.com/tmux-plugins/tmux-resurrect) project by Bruno Sutic. Bruno has also created a lot of other useful plugins as part of his [tmux-plugins](https://github.com/tmux-plugins) project.
+
+## License
+**tmux-resurrect-ng** is licensed under the MIT open source license.
