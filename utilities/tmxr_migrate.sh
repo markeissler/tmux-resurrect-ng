@@ -32,15 +32,15 @@ source "$CURRENT_DIR/../scripts/file_helpers.sh"
 #
 # The raw default is "$HOME/.tmux/resurrect".
 #
-#g_tmxr_directory_static="/Users/mark/dev/TEST_UNIT/tmxr_TEST"
-g_tmxr_directory_static=""
+#g_tmxr_directory_static="$HOME/.tmux/resurrect"
 
 # override the runtime history file name extension
 #
 # The raw default is ".ans" since ansi buffers are enabled by default.
 #
+# .ans (ansi enabled)
+# .txt (ansi disabled)
 #g_tmxr_buffer_extension_static=".ans"
-g_tmxr_buffer_extension_static="" # .ans (ansi enabled), .txt (ansi disabled)
 
 ##############################################################################
 ###### NO SERVICABLE PARTS BELOW
