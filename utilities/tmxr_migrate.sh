@@ -34,6 +34,12 @@ source "$CURRENT_DIR/../scripts/file_helpers.sh"
 #
 #g_tmxr_directory_static="$HOME/.tmux/resurrect"
 
+# override the runtime resurrect-ng directory setting
+#
+# The raw default is "$HOME/.tmux/resurrect-ng".
+#
+#g_tmxr_directory_ng_static="$HOME/.tmux/resurrect-ng"
+
 # override the runtime history file name extension
 #
 # The raw default is ".ans" since ansi buffers are enabled by default.
@@ -46,11 +52,15 @@ source "$CURRENT_DIR/../scripts/file_helpers.sh"
 ###### NO SERVICABLE PARTS BELOW
 ##############################################################################
 g_tmxr_directory="$g_tmxr_directory_static"
+g_tmxr_directory_ng="$g_tmxr_directory_ng_static"
 g_tmxr_backupdir="$g_tmxr_directory/migrated_files"
 # file extensions
 g_tmxr_buffer_extension="$g_tmxr_buffer_extension_static"
 g_tmxr_history_extension=".bsh" # .bsh (bash), .txt (non-specific shell)
 g_tmxr_state_extension=".txt"
+#
+g_debug=0
+g_noise=1
 
 # extract a list of unique pane ids from a list of file paths
 find_paneids_from_files() {
@@ -101,9 +111,10 @@ find_paneids_from_files() {
 
 # old: bash_history-_default:1.1
 # new: tmxr_1423010160_history-_default:1.1.bsh
-rename_history_files() {
+migrate_history_files() {
   local file_pattern="$g_tmxr_directory/bash_history-"'*'
   local file_path_list=()
+  local migrated_file_path_list=()
   local defaultIFS="$IFS"
   local IFS="$defaultIFS"
   local return_status=0
@@ -116,17 +127,22 @@ rename_history_files() {
   file_path_list=( $(ls -1 $file_pattern 2>/dev/null) )
   IFS="$defaultIFS"
 
-  echo "$stderr_status"
-  echo "${#file_path_list}"
+  if [[ "$g_debug" -ne 0 ]]; then
+    echo "$stderr_status"
+    echo "${#file_path_list}"
+  fi
 
   # iterate over list
   local _count=0
   local _mtime=0
-  local _file _file_basename _file_dirname _file_renamed
+  local _file _file_basename _file_renamed
   for _file in "${file_path_list[@]}"; do
     (( _count++ ))
     _file_basename="$(basename "${_file}")"
-    printf "renaming: %s\n" "${_file_basename}"
+
+    if [[ "$g_debug" -ne 0 ]]; then
+      printf "renaming: %s\n" "${_file_basename}"
+    fi
 
     ## get age of file (stat)
     _mtime="$(stat_mtime "${_file}")"
@@ -138,31 +154,41 @@ rename_history_files() {
     # add extension
     _file_renamed+="$g_tmxr_history_extension"
 
-    printf "     -->: %s\n" "${_file_renamed}"
+    if [[ "$g_debug" -ne 0 ]]; then
+      printf "     -->: %s\n" "${_file_renamed}"
+    fi
 
     # copy original to renamed file
-    _file_dirname="$(dirname "${_file}")"
-    cp "${_file}" "${_file_dirname}/${_file_renamed}"
+    cp "${_file}" "${g_tmxr_directory_ng}/${_file_renamed}"
     [[ $? -ne 0 ]] && return_status=1 && break
 
     # add "${_file}" to completed queue array
+    migrated_file_path_list+=( "${g_tmxr_directory_ng}/${_file_renamed}" )
 
-    # move original file to backupdir
-    mv "${_file}" "$g_tmxr_backupdir"
+    # copy or move original file to backupdir
+    if [[ "$g_tmxr_directory_ng" != "$g_tmxr_directory" ]]; then
+      cp "${_file}" "$g_tmxr_backupdir"
+    else
+      mv "${_file}" "$g_tmxr_backupdir"
+    fi
     [[ $? -ne 0 ]] && return_status=1 && break
   done
-  unset _file _file_basename _file_dirname _file_renamed
+  unset _file _file_basename _file_renamed
 
   # return array of migrated files
+  if [[ "$g_debug" -eq 0 ]]; then
+    printf "%s\n" "${migrated_file_path_list[@]}"
+  fi
 
   return $return_status
 }
 
 # old: tmux_buffer-_default:1.1
 # new: tmxr_1423010691_buffer-_default:1.1.ans
-rename_buffer_files() {
+migrate_buffer_files() {
   local file_pattern="$g_tmxr_directory/tmux_buffer-"'*'
   local file_path_list=()
+  local migrated_file_path_list=()
   local defaultIFS="$IFS"
   local IFS="$defaultIFS"
   local return_status=0
@@ -175,17 +201,22 @@ rename_buffer_files() {
   file_path_list=( $(ls -1 $file_pattern 2>/dev/null) )
   IFS="$defaultIFS"
 
-  echo "$stderr_status"
-  echo "${#file_path_list}"
+  if [[ "$g_debug" -ne 0 ]]; then
+    echo "$stderr_status"
+    echo "${#file_path_list}"
+  fi
 
   # iterate over list
   local _count=0
   local _mtime=0
-  local _file _file_basename _file_dirname _file_renamed
+  local _file _file_basename _file_renamed
   for _file in "${file_path_list[@]}"; do
     (( _count++ ))
     _file_basename="$(basename "${_file}")"
-    printf "renaming: %s\n" "${_file_basename}"
+
+    if [[ "$g_debug" -ne 0 ]]; then
+      printf "renaming: %s\n" "${_file_basename}"
+    fi
 
     ## get age of file (stat)
     _mtime="$(stat_mtime "${_file}")"
@@ -197,33 +228,43 @@ rename_buffer_files() {
     # add extension
     _file_renamed+="$g_tmxr_buffer_extension"
 
-    printf "     -->: %s\n" "${_file_renamed}"
+    if [[ "$g_debug" -ne 0 ]]; then
+      printf "     -->: %s\n" "${_file_renamed}"
+    fi
 
     # copy original to renamed file
-    _file_dirname="$(dirname "${_file}")"
-    cp "${_file}" "${_file_dirname}/${_file_renamed}"
+    cp "${_file}" "${g_tmxr_directory_ng}/${_file_renamed}"
     [[ $? -ne 0 ]] && return_status=1 && break
 
     # add "${_file}" to completed queue array
+    migrated_file_path_list+=( "${g_tmxr_directory_ng}/${_file_renamed}" )
 
-    # move original file to backupdir
-    mv "${_file}" "$g_tmxr_backupdir"
+    # copy or move original file to backupdir
+    if [[ "$g_tmxr_directory_ng" != "$g_tmxr_directory" ]]; then
+      cp "${_file}" "$g_tmxr_backupdir"
+    else
+      mv "${_file}" "$g_tmxr_backupdir"
+    fi
     [[ $? -ne 0 ]] && return_status=1 && break
   done
-  unset _file _file_basename _file_dirname _file_renamed
+  unset _file _file_basename _file_renamed
 
   # return array of migrated files
+  if [[ "$g_debug" -eq 0 ]]; then
+    printf "%s\n" "${migrated_file_path_list[@]}"
+  fi
 
   return $return_status
 }
 
 # old: tmux_resurrect_2015-02-04T12:43:32.txt
 # new: tmxr_1423082426.txt
-rename_state_files() {
+migrate_state_files() {
   local file_pattern="$g_tmxr_directory/tmux_resurrect_"'*.txt'
   local file_path_list=()
   local file_path_link="$g_tmxr_directory/last"
   local file_path_link_rslv="" # resolved file link path
+  local migrated_file_path_list=()
   local defaultIFS="$IFS"
   local IFS="$defaultIFS"
   local return_status=0
@@ -236,8 +277,10 @@ rename_state_files() {
   file_path_list=( $(ls -1 $file_pattern 2>/dev/null) )
   IFS="$defaultIFS"
 
-  echo "$stderr_status"
-  echo "${#file_path_list}"
+  if [[ "$g_debug" -ne 0 ]]; then
+    echo "$stderr_status"
+    echo "${#file_path_list}"
+  fi
 
   # iterate over list
   local _count=0
@@ -246,7 +289,10 @@ rename_state_files() {
   for _file in "${file_path_list[@]}"; do
     (( _count++ ))
     _file_basename="$(basename "${_file}")"
-    printf "renaming: %s\n" "${_file_basename}"
+
+    if [[ "$g_debug" -ne 0 ]]; then
+      printf "renaming: %s\n" "${_file_basename}"
+    fi
 
     ## get age of file (stat)
     _mtime="$(stat_mtime "${_file}")"
@@ -257,20 +303,26 @@ rename_state_files() {
     # add extension
     _file_renamed+="$g_tmxr_state_extension"
 
-    printf "     -->: %s\n" "${_file_renamed}"
+    if [[ "$g_debug" -ne 0 ]]; then
+      printf "     -->: %s\n" "${_file_renamed}"
+    fi
 
     # copy original to renamed file
-    _file_dirname="$(dirname "${_file}")"
-    cp "${_file}" "${_file_dirname}/${_file_renamed}"
+    cp "${_file}" "${g_tmxr_directory_ng}/${_file_renamed}"
     [[ $? -ne 0 ]] && return_status=1 && break
 
     # add "${_file}" to completed queue array
+    migrated_file_path_list+=( "${g_tmxr_directory_ng}/${_file_renamed}" )
 
-    # move original file to backupdir
-    mv "${_file}" "$g_tmxr_backupdir"
+    # copy or move original file to backupdir
+    if [[ "$g_tmxr_directory_ng" != "$g_tmxr_directory" ]]; then
+      cp "${_file}" "$g_tmxr_backupdir"
+    else
+      mv "${_file}" "$g_tmxr_backupdir"
+    fi
     [[ $? -ne 0 ]] && return_status=1 && break
   done
-  unset _file _file_basename _file_dirname _file_renamed
+  unset _file _file_basename _file_renamed
 
   if [[ $return_status -eq 0 ]]; then
     # relink last file in backupdir
@@ -283,18 +335,21 @@ rename_state_files() {
   fi
 
   # return array of migrated files
+  if [[ "$g_debug" -eq 0 ]]; then
+    printf "%s\n" "${migrated_file_path_list[@]}"
+  fi
 
   return $return_status
 }
 
 relink_last_files() {
-  local state_file_pattern="$g_tmxr_directory/tmxr_[0-9]*"'.txt'
+  local state_file_pattern="$g_tmxr_directory_ng/tmxr_[0-9]*"'.txt'
   local state_file_path_list=()
   local state_file_path=""
-  local buffer_file_pattern="$g_tmxr_directory/tmxr_[0-9]*_buffer"'*.*'
+  local buffer_file_pattern="$g_tmxr_directory_ng/tmxr_[0-9]*_buffer"'*.*'
   local buffer_file_path_list=()
   local buffer_file_path=""
-  local history_file_pattern="$g_tmxr_directory/tmxr_[0-9]*_buffer"'*.*'
+  local history_file_pattern="$g_tmxr_directory_ng/tmxr_[0-9]*_buffer"'*.*'
   local history_file_path_list=()
   local history_file_path=""
   local paneid_list=()
@@ -313,7 +368,7 @@ relink_last_files() {
   IFS="$defaultIFS"
 
   if [[ -n "$state_file_path" ]]; then
-    ln -fs "$(basename "$state_file_path")" "$g_tmxr_directory/last"
+    ln -fs "$(basename "$state_file_path")" "$g_tmxr_directory_ng/last"
     # still ok?
     [[ $? -ne 0 ]] && return_status=1
   fi
@@ -335,7 +390,7 @@ relink_last_files() {
     local _buffer_file_path_list=()
     local _buffer_file_path=""
     for _paneid in "${paneid_list[@]}"; do
-      _buffer_file_pattern="$g_tmxr_directory/tmxr_[0-9]*_buffer-${_paneid}"'.*'
+      _buffer_file_pattern="$g_tmxr_directory_ng/tmxr_[0-9]*_buffer-${_paneid}"'.*'
       IFS=$'\n'
       stderr_status=$(ls -1 ${_buffer_file_pattern} 2>&1 1>/dev/null)
       [[ $? -ne 0 ]] && [[ ! "${stderr_status}" =~ "No such file or directory" ]] && return 255
@@ -343,7 +398,7 @@ relink_last_files() {
       _buffer_file_path=$(echo "${_buffer_file_path_list[*]}" | sort -r | head -1)
       IFS="$defaultIFS"
       # link to last_buffer-PANE_ID
-      ln -fs "$(basename "${_buffer_file_path}")" "$g_tmxr_directory/last_buffer-${_paneid}"
+      ln -fs "$(basename "${_buffer_file_path}")" "$g_tmxr_directory_ng/last_buffer-${_paneid}"
       # still ok?
       [[ $? -ne 0 ]] && return_status=2 && break
     done
@@ -360,7 +415,7 @@ relink_last_files() {
     local _history_file_path_list=()
     local _history_file_path=""
     for _paneid in "${paneid_list[@]}"; do
-      _history_file_pattern="$g_tmxr_directory/tmxr_[0-9]*_history-${_paneid}"'.*'
+      _history_file_pattern="$g_tmxr_directory_ng/tmxr_[0-9]*_history-${_paneid}"'.*'
       IFS=$'\n'
       stderr_status=$(ls -1 ${_history_file_pattern} 2>&1 1>/dev/null)
       [[ $? -ne 0 ]] && [[ ! "${stderr_status}" =~ "No such file or directory" ]] && return 255
@@ -368,7 +423,7 @@ relink_last_files() {
       _history_file_path=$(echo "${_history_file_path_list[*]}" | sort -r | head -1)
       IFS="$defaultIFS"
       # link to last_history-PANE_ID
-      ln -fs "$(basename "${_history_file_path}")" "$g_tmxr_directory/last_history-${_paneid}"
+      ln -fs "$(basename "${_history_file_path}")" "$g_tmxr_directory_ng/last_history-${_paneid}"
       # still ok?
       [[ $? -ne 0 ]] && return_status=3 && break
     done
@@ -387,9 +442,13 @@ remove_files() {
 }
 
 main() {
+  local migrated_file_path_list=()
+  local defaultIFS="$IFS"
+  local IFS="$defaultIFS"
   local status=0
   local static_settings=( \
     "g_tmxr_directory_static" \
+    "g_tmxr_directory_ng_static" \
     "g_tmxr_buffer_extension_static" \
   )
 
@@ -421,12 +480,20 @@ main() {
       printf "ERROR: Static settings not specified and tmux server is unreachable.\n"
       printf "       Either set static settings or start tmux server.\n"
       printf "\n"
-      return 1
       printf "Aborting. Migration failed.\n"
+      return 1
     fi
 
     # get tmxr resurrect directory settings
     g_tmxr_directory="$(resurrect_dir)"
+
+    # configure resurrect-ng directory settings
+    g_tmxr_directory_ng="${g_tmxr_directory}"
+
+    # handle the old default directory path
+    if [[ "$g_tmxr_directory" == "$default_resurrect_dir" ]]; then
+      g_tmxr_directory="${g_tmxr_directory%-ng}"
+    fi
 
     # get tmxr buffer extension setting
     if [[ $(enable_pane_ansi_buffers_on; echo $?) -eq 0 ]]; then
@@ -441,7 +508,6 @@ main() {
   if [[ -z "${g_tmxr_directory}" || ! -d "${g_tmxr_directory}" ]]; then
     printf "\n"
     printf "ERROR: Invalid tmux resurrect directory specified.\n"
-    printf "       static settings or set none.\n"
     printf "\n"
     printf "The following directory setting is configured:\n"
     printf "\n"
@@ -452,67 +518,133 @@ main() {
   fi
 
   # re-configure backup directory
-  g_tmxr_backupdir="$g_tmxr_directory/migrated_files"
+  g_tmxr_backupdir="$g_tmxr_directory_ng/migrated_files"
 
   #
-  # We begin by gathering a list of current files for:
-  #   state
-  #   buffer
-  #   history
+  # Behavior differs whether or not the we are migrating within the same dir.
+  # The default ng directory is ~/.tmux/resurrect-ng, but the user may have
+  # specified a different directory via the @resurrect-dir config setting or
+  # with the static setting.
   #
-  # Each array is then passed as an input to its respective "rename" function.
-  # That function will copy the original file to the backup directory, then
-  # renamed the current file. It will then append the "renamed" file to its list
-  # of files. Finally it will return the list of "renamed" files. We append that
-  # list to our local list of "renamed" files.
+  # As long as the new directory is different from the old directory, we just
+  # copy renamed files to the new directory, and copy the old files to the
+  # "migrated_files" directory within the new directory; this leaves the old
+  # directory pristine. Rolling back just requires deleting the new directory.
   #
-  # On successful completion, we will iterate through the list of original files
-  # and delete them, ignoring the "last" link. However, if at any point we need
-  # to roll back, we can simply iterate over the "renamed" files list, and
-  # delete those, and then relink the "last" state file.
+  # When the new and old directory are the same (which will always occur if the
+  # user has set @resurrect-dir) then we move the old files to the "migrated_
+  # files" directory in the new/old directory as we leave renamed copies in the
+  # top level of that directory. Rolling back requires deleting all renamed
+  # files and copying back all of the old files from the "migrated_files" dir,
+  # then removing that directory.
   #
-  # The backup directory is left around in case the user ever want to switch
-  # back to tmux-resurrect.
+  # To facilitiate the above, all migrate_ functions return a list of renamed
+  # files which is appended to the master list of renamed files here.
+  #
+  # Upon successful completion we will always leave behind a backup directory,
+  # the "migrated_files" directory which will be found within the new directory.
   #
 
-  echo "Migrating tmux-resurrect state files to tmux-resurrect-ng format..."
+  echo "Migrating tmux-resurrect files to tmux-resurrect-ng format..."
 
   echo "Creating backup directory"
   mkdir -p "$g_tmxr_backupdir"
   [[ $? -ne 0 ]] && status=1
 
-  echo "Migrating history files"
-  rename_history_files
-  [[ $? -ne 0 ]] && status=1
+  if [[ $status -eq 0 ]]; then
+    if [[ "$g_tmxr_directory_ng" != "$g_tmxr_directory" ]]; then
+      echo "Creating resurrect-ng directory"
+      mkdir -p "$g_tmxr_directory_ng"
+      [[ $? -ne 0 ]] && status=2
+    fi
+  fi
 
-  echo "Migrating buffer files"
-  rename_buffer_files
-  [[ $? -ne 0 ]] && status=1
+  if [[ $status -eq 0 ]]; then
+    echo "Migrating history files"
+    IFS=$'\n'
+    migrated_file_path_list+=( $(migrate_history_files) )
+    IFS="$defaultIFS"
+    [[ $? -ne 0 ]] && status=3
+  fi
 
-  echo "Migrating state files"
-  rename_state_files
-  [[ $? -ne 0 ]] && status=1
+  if [[ $status -eq 0 ]]; then
+    echo "Migrating buffer files"
+    IFS=$'\n'
+    migrated_file_path_list+=( $(migrate_buffer_files) )
+    IFS="$defaultIFS"
+    [[ $? -ne 0 ]] && status=4
+  fi
 
-  echo "Relinking last files"
-  relink_last_files
-  [[ $? -ne 0 ]] && status=1
+  if [[ $status -eq 0 ]]; then
+    echo "Migrating state files"
+    IFS=$'\n'
+    migrated_file_path_list+=( $(migrate_state_files) )
+    IFS="$defaultIFS"
+    [[ $? -ne 0 ]] && status=5
+  fi
+
+  if [[ $status -eq 0 ]]; then
+    echo "Relinking last files"
+    relink_last_files
+    [[ $? -ne 0 ]] && status=6
+  fi
+
+  if [[ "$g_debug" -eq 0 && $g_noise -gt 1 ]]; then
+    echo "Updated files..."
+    for file in "${migrated_file_path_list[@]}"; do
+      echo "$file"
+    done
+  fi
+
+  # remove all migrated files, last links, and migrated backups back into
+  # place, then remove resurrect-ng dir if different from original.
+  if [[ $status -ne 0 ]]; then
+    echo
+    echo "Something unplanned for has happened. Rolling back..."
+
+    if [[ "$g_tmxr_directory_ng" != "$g_tmxr_directory" ]]; then
+      # updated files moved to a new directory. delete it!
+      rm -rf "$g_tmxr_directory_ng"
+    else
+      # updated files moved to same directory. restore it!
+      echo "Removing updated files"
+      for file in "${migrated_file_path_list[@]}"; do
+        [[ $g_noise -gt 1 ]] && echo "rm: $file"
+        rm -f $file
+      done
+      # remove links
+      echo "Removing last links"
+      rm -f "$g_tmxr_directory_ng/last"
+      rm -f "$g_tmxr_directory_ng/last_buffer-"*
+      rm -f "$g_tmxr_directory_ng/last_history-"*
+      # restore successfully migrated files
+      echo "Restoring backup files"
+      cp -Rp "$g_tmxr_backupdir/"* "$g_tmxr_directory"
+      # remove migrated_files directory
+      echo "Removing backup directory"
+      rm -rf "$g_tmxr_backupdir" 2>&1 > /dev/null
+    fi
+  fi
 
   if [[ $status -ne 0 ]]; then
     echo
     echo "Tried migrating your files but there were problems."
-    echo "Your original files have been left in place."
+    echo "Your original files have been restored."
+    echo
   else
     echo
     echo "All done! You are ready to use tmux-resurrect-ng!"
-    echo "Your original files have been copied to:"
+    echo
+    echo "Updated files are located at:"
+    echo
+    echo "    $g_tmxr_directory_ng"
+    echo
+    echo "Your original files have been copied to a backup at:"
     echo
     echo "    $g_tmxr_backupdir"
     echo
     echo "You may want to remove that directory after you feel"
-    echo "comfortable with tmux-resurrect-ng. Otherwise, you"
-    echo "always switch back to tmux-resurrect by removing the"
-    echo "contents of the ~/.tmux/resurrect directory and then"
-    echo "copying back the contents of the backup directory."
+    echo "comfortable with tmux-resurrect-ng."
     echo
   fi
 
