@@ -4,7 +4,7 @@
 #   variables.sh
 #
 
-default_resurrect_dir="$HOME/.tmux/resurrect"
+default_resurrect_dir="$HOME/.tmux/resurrect-ng"
 resurrect_dir_option="@resurrect-dir"
 
 # TMUX_SUPPORTED_VERSION="1.9"
