@@ -359,7 +359,7 @@ version_in_versionlist() {
   [[ -z "$target_version" || "${#version_list[@]}" -eq 0 ]] && exit 255
 
   target_version_int="$(digits_from_string "$target_version")"
-  version_list_sorted=( $(printf "%s" "${version_list[*]}" | sort -r | uniq) )
+  version_list_sorted=( $(printf "%s\n" "${version_list[@]}" | sort -r | uniq) )
 
   # We iterate over the version list, converting version strings to version ints
   # (the version number stripped of alpha chars and punctuation), and comparing
