@@ -46,7 +46,8 @@ main() {
     #
     "$CURRENT_DIR/restore_auto.sh"
     status_index=$?
-    [[ $status_index -eq 255 ]] && status_index=4
+    [[ $status_index -eq 254 ]] && status_index=4
+    [[ $status_index -eq 255 ]] && status_index=5
 
     # clear all actions
     purge_actions_files
