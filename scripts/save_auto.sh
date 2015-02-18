@@ -41,6 +41,7 @@ update_pane_trigger() {
   local history_file_pattern="$(pane_history_file_path "${pane_id}" "true")"
   local history_file_extension=".txt"
   local history_file_path=""
+  local actions_file_path="$(pane_actions_file "$pane_id" "$pane_tty")"
   local trigger_file_path="$(pane_trigger_file "$pane_id" "$pane_tty")"
   local timeinsec=$(date +%s)
   local frequency=$(save_auto_frequency) # minutes
@@ -80,6 +81,10 @@ update_pane_trigger() {
   history_file_path_list=( $(ls -1 $history_file_pattern 2>/dev/null) )
   history_file_path=$(echo "${history_file_path_list[*]}" | sort -r | head -1)
   IFS="$defaultIFS"
+
+  # if there is no corresponding actions file (which indicates activity has
+  # occurred to update history/buffer), we just bail out now.
+  [[ ! -f "$actions_file_path" ]] && return $return_status
 
   # if history/buffer files are missing or one of them is old, update trigger
   local buffer_file_mtime=$( (stat_mtime $buffer_file_path) || echo -1 )

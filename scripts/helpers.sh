@@ -250,6 +250,16 @@ last_pane_buffer_file() {
   echo "$(resurrect_dir)/last_buffer-${pane_id}"
 }
 
+pane_actions_file() {
+  local pane_id="$1"
+  local pane_tty="${2//\//@}"
+
+  # must have a pane_id!
+  [[ -z "$pane_id" || -z "$pane_tty" ]] && echo "" && return 1
+
+  echo "$(resurrect_dir)/.actions-${pane_id}:${pane_tty}"
+}
+
 pane_trigger_file() {
   local pane_id="$1"
   local pane_tty="${2//\//@}"
@@ -381,6 +391,14 @@ version_in_versionlist() {
   return_string+=", [${version_list_string// /, }]"
 
   echo "$return_string"; return $return_status
+}
+
+purge_actions_files() {
+  local actions_file_pattern='.actions-*'
+
+  rm -f "$(resurrect_dir)/"$actions_file_pattern > /dev/null 2>&1
+
+  return $?
 }
 
 purge_trigger_files() {

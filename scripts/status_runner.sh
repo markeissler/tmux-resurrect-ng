@@ -31,16 +31,13 @@ main() {
   # 255 - fatal
   #
 
-  if [[ $session_time -lt 0 ]]; then
+  if [[ -z "$session_time" || $session_time -lt 0 ]]; then
     #
     # fatal error - session time unavailable
     #
     status_index=5
   elif [[ ( $status_interval -gt 0 && $session_time -lt $status_interval ) \
     || ( $status_interval -eq 0 && $session_time -lt 5 ) ]]; then
-
-    # clear all triggers
-    purge_trigger_files
 
     #
     # run restore_auto:
@@ -50,6 +47,12 @@ main() {
     "$CURRENT_DIR/restore_auto.sh"
     status_index=$?
     [[ $status_index -eq 255 ]] && status_index=4
+
+    # clear all actions
+    purge_actions_files
+
+    # clear all triggers
+    purge_trigger_files
   else
     #
     # run save_auto:
