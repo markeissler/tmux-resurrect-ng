@@ -18,6 +18,15 @@ tmxr_version() {
   echo "$tmxr_version"
 }
 
+# versions of tmux-resurrect-ng that this version supports for auto-migrating
+# older tmxr file formats to this version.
+#
+# Returns a space delimited string of records.
+#
+tmxr_versions_list() {
+  printf "%s" "${tmxr_version_list[*]}"
+}
+
 # versions of tmux that tmux-resurrect-ng (tmxr) supports
 #
 # Returns a space delimited string of records.
@@ -332,9 +341,10 @@ resurrect_file_version_ok() {
 
   [[ ! -f "$resurrect_file_path" ]] && return 255
 
-  resurrect_file_vers=<(awk 'BEGIN { FS="\t"; OFS="\t" } /^vers/ { print $2; }' "$resurrect_file_path")
+  resurrect_file_vers="$(awk 'BEGIN { FS="\t"; OFS="\t" } /^vers/ { print $2; }' "$resurrect_file_path")"
+  resurrect_file_vers="${resurrect_file_vers:-unknown}"
 
-  return_string="$(version_in_versionlist "$resurrect_file_vers" "$(tmux_versions_list)")"
+  return_string="$(version_in_versionlist "$resurrect_file_vers" "$(tmxr_versions_list)")"
   return_status=$?
 
   echo "$return_string"; return $return_status

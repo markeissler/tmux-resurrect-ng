@@ -8,6 +8,16 @@
 
 #
 tmxr_version="0.9.0"
+
+# supported tmxr versions
+#
+# Used for auto-migrating older tmxr file formats to this version.
+#
+tmxr_version_list=(
+  "0.9"
+)
+
+# supported tmux versions
 tmux_version_list=(
   "1.9"
 )
