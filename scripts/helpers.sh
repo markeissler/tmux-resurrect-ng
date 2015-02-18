@@ -305,14 +305,16 @@ sanity_ok() {
   # 255 - fatal (reserved)
   #
 
+  # check tmux version
   if [[ $(supported_tmux_version_ok; echo $?) -eq 1 ]]; then
-    (( status_index++ ))
+    status_index=1
   fi
 
+  # create resurrect_dir if it doesn't exist
   if [[ $status_index -eq 0 && ! -d "$resurrect_dir" ]]; then
     # tmxr directory, try to recover by creating one
     mkdir -p "$resurrect_dir"
-    [[ $? -ne 0 ]] && (( status_index++ ))
+    [[ $? -ne 0 ]] && status_index=2
   fi
 
   return $status_index
