@@ -381,15 +381,16 @@ version_in_versionlist() {
   done
 
   # return_string format:
-  #   [oldest, newest], [versions]
+  #   [target], [oldest, newest], [versions]
   # e.g. not matching
-  #   [1.9a, 3.2], [1.9a, 2.0, 2.1, 3.0, 3.1, 3.2]
+  #   [1.7], [1.9a, 3.2], [1.9a, 2.0, 2.1, 3.0, 3.1, 3.2]
   #
   if [[ -z "$version_list_match" ]]; then
     return_status=1
   fi
   local version_list_string="${version_list_sorted[@]}"
-  return_string+="[$version_oldest, $version_newest]"
+  return_string+="[$target_version]"
+  return_string+=", [$version_oldest, $version_newest]"
   return_string+=", [${version_list_string// /, }]"
 
   echo "$return_string"; return $return_status
