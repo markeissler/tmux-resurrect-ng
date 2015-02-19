@@ -265,6 +265,7 @@ migrate_state_files() {
   local file_path_link="$g_tmxr_directory/last"
   local file_path_link_rslv="" # resolved file link path
   local migrated_file_path_list=()
+  local tmxr_version="$(tmxr_version)"
   local defaultIFS="$IFS"
   local IFS="$defaultIFS"
   local return_status=0
@@ -307,8 +308,11 @@ migrate_state_files() {
       printf "     -->: %s\n" "${_file_renamed}"
     fi
 
-    # copy original to renamed file
-    cp "${_file}" "${g_tmxr_directory_ng}/${_file_renamed}"
+    # create renamed file and append tmxr_version line
+    printf "vers%c%s\n" $'\t' "$tmxr_version" > "${g_tmxr_directory_ng}/${_file_renamed}"
+
+    # append original content to renamed file
+    cat "${_file}" >> "${g_tmxr_directory_ng}/${_file_renamed}"
     [[ $? -ne 0 ]] && return_status=1 && break
 
     # add "${_file}" to completed queue array

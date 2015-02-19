@@ -32,14 +32,14 @@ exit_if_unsupported_version() {
 
   if [[ "$return_status" -ne 0 ]]; then
     local required_versions_str="$(echo "$return_string" \
-      | awk 'BEGIN { FS="],[ ]*" } { print $2; }')"
+      | awk 'BEGIN { FS="],[ ]*" } { print $3; }')"
     required_versions_str="${required_versions_str#[}"
     required_versions_str="${required_versions_str%]}"
     local msg="Installed: $target_version / Required: $required_versions_str"
     if [[ -n "$unsupported_msg" ]]; then
       display_message "$unsupported_msg ($msg)" "$display_time"
     else
-      display_message "Resurrect Error: Tmux version unsupported! ($msg)" "$display_time"
+      display_message "Resurrect: Tmux version unsupported! ($msg)" "$display_time"
     fi
     exit 1
   fi

@@ -18,6 +18,15 @@ tmxr_version() {
   echo "$tmxr_version"
 }
 
+# versions of tmux-resurrect-ng that this version supports for auto-migrating
+# older tmxr file formats to this version.
+#
+# Returns a space delimited string of records.
+#
+tmxr_versions_list() {
+  printf "%s" "${tmxr_version_list[*]}"
+}
+
 # versions of tmux that tmux-resurrect-ng (tmxr) supports
 #
 # Returns a space delimited string of records.
@@ -305,14 +314,16 @@ sanity_ok() {
   # 255 - fatal (reserved)
   #
 
+  # check tmux version
   if [[ $(supported_tmux_version_ok; echo $?) -eq 1 ]]; then
-    (( status_index++ ))
+    status_index=1
   fi
 
+  # create resurrect_dir if it doesn't exist
   if [[ $status_index -eq 0 && ! -d "$resurrect_dir" ]]; then
     # tmxr directory, try to recover by creating one
     mkdir -p "$resurrect_dir"
-    [[ $? -ne 0 ]] && (( status_index++ ))
+    [[ $? -ne 0 ]] && status_index=2
   fi
 
   return $status_index
@@ -322,7 +333,7 @@ supported_tmux_version_ok() {
   "$CURRENT_DIR/check_tmux_version.sh" "$(tmux_versions_list)"
 }
 
-resurrect_file_version_ok() {
+resurrect_file_version() {
   local resurrect_file_path="$1"
   local resurrect_file_vers=""
   local return_status=0
@@ -330,17 +341,36 @@ resurrect_file_version_ok() {
 
   [[ ! -f "$resurrect_file_path" ]] && return 255
 
-  resurrect_file_vers=<(awk 'BEGIN { FS="\t"; OFS="\t" } /^vers/ { print $2; }' "$resurrect_file_path")
+  resurrect_file_vers="$({ awk 'BEGIN { FS="\t"; OFS="\t" } /^vers/ { print $2; }' "$resurrect_file_path"; } 2> /dev/null)"
+  [[ $? -ne 0 ]] && echo "" && return 1
 
-  return_string="$(version_in_versionlist "$resurrect_file_vers" "$(tmux_versions_list)")"
+  return_string="${resurrect_file_vers:-unknown}"
+
+  echo -n "$return_string"; return $return_status
+}
+
+resurrect_file_version_ok() {
+  local resurrect_file_path="$1"
+  local resurrect_file_vers=""
+  local resurrect_file_places=2 # only compare major.minor from version
+  local return_status=0
+  local return_string=""
+
+  [[ ! -f "$resurrect_file_path" ]] && return 255
+
+  resurrect_file_vers="$(resurrect_file_version "$resurrect_file_path")"
+  [[ $? -ne 0 ]] && echo "" && return 1
+
+  return_string="$(version_in_versionlist "$resurrect_file_vers" "$(tmxr_versions_list)" "$resurrect_file_places")"
   return_status=$?
 
-  echo "$return_string"; return $return_status
+  echo -n "$return_string"; return $return_status
 }
 
 version_in_versionlist() {
   local target_version="$1"
   local target_version_int=0
+  local target_places=3
   local version_list=()
   local version_list_match="" # matching version found
   local version_list_sorted=()
@@ -353,11 +383,14 @@ version_in_versionlist() {
 
   IFS=$' ' version_list=( $2 ) IFS="$defaultIFS"
 
+  # match all three places (major.minor.bugfix) by default
+  [[ -n "$3" ]] && target_places="$3"
+
   # we need a target version and version list!
   [[ -z "$target_version" || "${#version_list[@]}" -eq 0 ]] && exit 255
 
-  target_version_int="$(digits_from_string "$target_version")"
-  version_list_sorted=( $(printf "%s" "${version_list[*]}" | sort -r | uniq) )
+  target_version_int="$(digits_from_string "$target_version" "$target_places")"
+  version_list_sorted=( $(printf "%s\n" "${version_list[@]}" | sort -r | uniq) )
 
   # We iterate over the version list, converting version strings to version ints
   # (the version number stripped of alpha chars and punctuation), and comparing
@@ -366,12 +399,12 @@ version_in_versionlist() {
   # our caller.
   local _count=0
   for version in "${version_list_sorted[@]}"; do
-    local version_int="$(digits_from_string "$version")"
+    local version_int="$(digits_from_string "$version" "$target_places")"
     [[ -z "$version_int" ]] && break
 
     [[ $_count -eq 0 ]] && version_newest="$version"
     version_oldest="$version"
-    if [[ $version_int -eq $target_version_int ]]; then
+    if [[ "$version_int" = "$target_version_int" ]]; then
       version_list_match="$version"
       break
     fi
@@ -379,15 +412,16 @@ version_in_versionlist() {
   done
 
   # return_string format:
-  #   [oldest, newest], [versions]
+  #   [target], [oldest, newest], [versions]
   # e.g. not matching
-  #   [1.9a, 3.2], [1.9a, 2.0, 2.1, 3.0, 3.1, 3.2]
+  #   [1.7], [1.9a, 3.2], [1.9a, 2.0, 2.1, 3.0, 3.1, 3.2]
   #
   if [[ -z "$version_list_match" ]]; then
     return_status=1
   fi
   local version_list_string="${version_list_sorted[@]}"
-  return_string+="[$version_oldest, $version_newest]"
+  return_string+="[$target_version]"
+  return_string+=", [$version_oldest, $version_newest]"
   return_string+=", [${version_list_string// /, }]"
 
   echo "$return_string"; return $return_status
@@ -414,7 +448,24 @@ purge_trigger_files() {
 # `1.9a`     => `19`
 digits_from_string() {
   local string="$1"
-  local only_digits="$(echo "$string" | tr -dC '[:digit:]')"
+  local string_array=()
+  local places=3
+  local places_string=""
+  local only_digits=""
+  local defaultIFS="$IFS"
+  local IFS="$defaultIFS"
+
+  [[ -n "$2" ]] && places="$2"
+
+  # trim extraneous places from string
+  IFS='.' string_array=( $string ) IFS="$defaultIFS"
+
+  for (( i=0; $i<${#string_array[@]} && $i<$places; i++  )); do
+    places_string+="${string_array[i]}"
+  done
+
+  only_digits="$(echo "$places_string" | tr -dC '[:digit:]')"
+
   echo "$only_digits"
 }
 

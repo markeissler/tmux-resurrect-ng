@@ -32,7 +32,9 @@ restore_all() {
 
 main() {
   if [[ $(sanity_ok; echo $?) -eq 0 ]]; then
-    local restore_rslt
+    local state_file_path="$(last_resurrect_file)"
+    local versions_str=""
+    local restore_rslt version_rslt
     local status_index=0
 
     #
@@ -49,19 +51,52 @@ main() {
       # restore_auto is enabled, bump up status_index
       (( status_index++ ))
 
+      # only try to restore if we have a supported state file
       if [[ $(check_saved_session_exists; echo $?) -eq 0 ]]; then
-        #
-        # @TODO: need to check for saved history/buffers too!
-        #
+        versions_str="$(resurrect_file_version_ok "$state_file_path")"
+        version_rslt=$?
 
-        # we have state files
-        start_spinner "Restoring..." "Auto restore complete!"
-        restore_all; restore_rslt=$?
-        stop_spinner
-        display_message "Tmux restore complete!"
+        if [[ "$version_rslt" -ne 0 ]]; then
+          local detected_version_str=""
+          local supported_versions_str=""
+          local message=""
+          local display_time="10000" # microseconds!
 
-        # return auto restore status code
-        [[ $restore_rslt -eq 0 ]] && (( status_index+=2 ))
+          # parse detected file format version
+          detected_version_str="$(echo "$versions_str" \
+            | awk 'BEGIN { FS="],[ ]*" } { print $1; }')"
+          detected_version_str="${detected_version_str#[}"
+          detected_version_str="${detected_version_str%]}"
+
+          # parse supported file format versions
+          supported_versions_str="$(echo "$versions_str" \
+            | awk 'BEGIN { FS="],[ ]*" } { print $3; }')"
+          supported_versions_str="${supported_versions_str#[}"
+          supported_versions_str="${supported_versions_str%]}"
+
+          # display error message
+          message="Found: $detected_version_str / Supported: $supported_versions_str"
+          display_message "Resurrect: Session state file unsupported! ($message)" "$display_time"
+
+          # return auto restore status code
+          status_index=254
+        else
+          #
+          # @TODO: need to check for saved history/buffers too!
+          #
+
+          # we have state files
+          start_spinner "Restoring..." "Auto restore complete!"
+          restore_all; restore_rslt=$?
+          stop_spinner
+          if [[ $restore_rslt -eq 0 ]]; then
+            display_message "Resurrect: Tmux restore complete!"
+            (( status_index+=2 ))
+          else
+            display_message "Resurrect: Session restore failed."
+            status_index=254
+          fi
+        fi
       fi
     fi
   else
