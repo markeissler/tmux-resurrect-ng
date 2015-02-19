@@ -427,7 +427,24 @@ purge_trigger_files() {
 # `1.9a`     => `19`
 digits_from_string() {
   local string="$1"
-  local only_digits="$(echo "$string" | tr -dC '[:digit:]')"
+  local string_array=()
+  local places=3
+  local places_string=""
+  local only_digits=""
+  local defaultIFS="$IFS"
+  local IFS="$defaultIFS"
+
+  [[ -n "$2" ]] && places="$2"
+
+  # trim extraneous places from string
+  IFS='.' string_array=( $string ) IFS="$defaultIFS"
+
+  for (( i=0; $i<${#string_array[@]} && $i<$places; i++  )); do
+    places_string+="${string_array[i]}"
+  done
+
+  only_digits="$(echo "$places_string" | tr -dC '[:digit:]')"
+
   echo "$only_digits"
 }
 
