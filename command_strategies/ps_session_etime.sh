@@ -28,7 +28,8 @@ etime_to_seconds() {
   local _elem=""
   local _indx=1
   for(( i=${#time_string_array[@]}; i>0; i-- )); do
-    _elem="${time_string_array[$i-1]}"
+    # strip leading zeroes to avoid bash int error
+    _elem="${time_string_array[$i-1]##0}"
     case ${_indx} in
       1 )
         (( time_seconds+=${_elem} ))
