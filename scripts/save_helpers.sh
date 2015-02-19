@@ -358,8 +358,13 @@ save_pane_buffer() {
       tmux capture-pane ${capture_color_opt} -t "${pane_id}" -S -32768 \; save-buffer -b 0 "${buffer_file_path}" \; delete-buffer -b 0
 
       # strip trailing empty lines from saved buffer
-      sed_pattern='/^\n*$/{$d;N;};/\n$/ba'
-      sed -i.bak -e ':a' -e "${sed_pattern}" "${buffer_file_path}" &>/dev/null
+      local _filecontent=$(<"${buffer_file_path}")
+      printf "%s\n" "${_filecontent/$'\n'}" > "${buffer_file_path}.bak"
+      if [[ $? -eq 0 ]]; then
+        cp "${buffer_file_path}.bak" "$buffer_file_path"
+      fi
+      rm "${buffer_file_path}.bak" &> /dev/null
+      unset _filecontent
 
       if [[ "$tmxr_dump_flag" = false ]]; then
         # calculate line span of bash prompt
