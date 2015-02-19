@@ -352,14 +352,16 @@ save_pane_buffer() {
       || ( "$tmxr_dump_flag" = true && "$full_command" = ":-bash" ) ]]; then
       # adjust tmux capture options
       local capture_color_opt=""
+      local ansi_buffer_reset=""
       if enable_pane_ansi_buffers_on; then
         capture_color_opt="-e "
+        ansi_buffer_reset=$'\e[0m' # buffer sometimes ends on a color!
       fi
       tmux capture-pane ${capture_color_opt} -t "${pane_id}" -S -32768 \; save-buffer -b 0 "${buffer_file_path}" \; delete-buffer -b 0
 
       # strip trailing empty lines from saved buffer
       local _filecontent=$(<"${buffer_file_path}")
-      printf "%s\n" "${_filecontent/$'\n'}" > "${buffer_file_path}.bak"
+      printf "%s%b\n" "${_filecontent/$'\n'}" "$ansi_buffer_reset" > "${buffer_file_path}.bak"
       if [[ $? -eq 0 ]]; then
         cp "${buffer_file_path}.bak" "$buffer_file_path"
       fi
