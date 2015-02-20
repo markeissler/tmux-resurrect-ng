@@ -39,7 +39,7 @@ exit_if_unsupported_version() {
     if [[ -n "$unsupported_msg" ]]; then
       display_message "$unsupported_msg ($msg)" "$display_time"
     else
-      display_message "Resurrect: Tmux version unsupported! ($msg)" "$display_time"
+      display_message "Tmux version unsupported! ($msg)" "$display_time"
     fi
     exit 1
   fi

@@ -76,7 +76,7 @@ main() {
 
           # display error message
           message="Found: $detected_version_str / Supported: $supported_versions_str"
-          display_message "Resurrect: Session state file unsupported! ($message)" "$display_time"
+          display_message "Session state file unsupported! ($message)" "$display_time"
 
           # return auto restore status code
           status_index=254
@@ -85,15 +85,16 @@ main() {
           # @TODO: need to check for saved history/buffers too!
           #
 
-          # we have state files
-          start_spinner "Restoring..." "Auto restore complete!"
+          # we have valid state files
+          start_spinner "Restoring..."
+          sleep 4
           restore_all; restore_rslt=$?
           stop_spinner
           if [[ $restore_rslt -eq 0 ]]; then
-            display_message "Resurrect: Tmux restore complete!"
+            display_message "Auto restore complete!"
             (( status_index+=2 ))
           else
-            display_message "Resurrect: Session restore failed."
+            display_message "Auto restore failed."
             status_index=254
           fi
         fi

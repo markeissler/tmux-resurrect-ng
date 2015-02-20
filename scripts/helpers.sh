@@ -103,14 +103,15 @@ get_status_interval() {
 # Ensures a message is displayed for 5 seconds in tmux prompt.
 # Does not override the 'display-time' tmux option.
 display_message() {
-  local message="$1"
+  local message="Resurrect: $1"
+  local msgicon=">"
+  local display_duration=5000 # milliseconds
 
-  # display_duration defaults to 5 seconds, if not passed as an argument
-  if [ "$#" -eq 2 ]; then
-    local display_duration="$2"
-  else
-    local display_duration="5000"
-  fi
+  # display_duration
+  [[ -n "$2" ]] && display_duration="$2"
+
+  # message icon (precedes output of message)
+  [[ -n "$3" ]] && msgicon="$3"
 
   # saves user-set 'display-time' option
   local saved_display_time=$(get_tmux_option "display-time" "750")
@@ -119,7 +120,7 @@ display_message() {
   tmux set-option -gq display-time "$display_duration"
 
   # displays message
-  tmux display-message "$message"
+  tmux display-message " $msgicon $message"
 
   # restores original 'display-time' value
   tmux set-option -gq display-time "$saved_display_time"
