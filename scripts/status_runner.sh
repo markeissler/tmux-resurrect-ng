@@ -16,7 +16,7 @@ source "$CURRENT_DIR/proc_helpers.sh"
 
 main() {
   local session_name="$(get_session_name)"
-  local session_time=$( (ps_session_etime "$session_name") || echo -1 )
+  local session_time=$( (session_etime "$session_name") || echo -1 )
   local status_interval=$(get_status_interval) # seconds
   local status_index=0
   local status_codes=( 'X' '-' 'S' 'R' '?' '!' )

@@ -67,11 +67,12 @@ restore_process_strategy_option="@resurrect-strategy-"
 
 inline_strategy_token="->"
 
-save_command_strategy_option="@resurrect-save-command-strategy"
-default_save_command_strategy="ps"
+pane_full_command_strategy_option="@resurrect-pane-full-command-strategy"
+default_pane_full_command_strategy="ps_pane_full_command"
+dep_pane_full_command_strategy_option="@resurrect-save-command-strategy"
 
-ps_session_etime_command_strategy_option="@resurrect-ps-session-etime-command-strategy"
-default_ps_session_etime_command_strategy="ps_session_etime"
+session_etime_command_strategy_option="@resurrect-session-etime-command-strategy"
+default_session_etime_command_strategy="ps_session_etime"
 
 stat_mtime_command_strategy_option="@resurrect-stat-mtime-command-strategy"
 default_stat_mtime_command_strategy="stat_mtime"

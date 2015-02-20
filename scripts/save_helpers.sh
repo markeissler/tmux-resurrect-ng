@@ -85,7 +85,7 @@ dump_panes() {
         # unmaximize the pane
         tmux resize-pane -Z -t "${session_name}:${window_number}"
       fi
-      full_command="$(full_command $pane_pid)"
+      full_command="$(pane_full_command $pane_pid)"
       echo "${line_type}${d}${session_name}${d}${window_number}${d}${window_name}${d}${window_active}${d}${window_flags}${d}${pane_index}${d}${dir}${d}${pane_active}${d}${pane_command}${d}:${full_command}"
     done
 }
