@@ -27,10 +27,10 @@ save_all() {
 
 main() {
   if [[ $(sanity_ok; echo $?) -eq 0 ]]; then
-    start_spinner "Saving..." "Tmux environment saved!"
+    start_spinner "Saving..."
     save_all
     stop_spinner
-    display_message "Tmux environment saved!"
+    display_message "Environment saved!"
   fi
 }
 
