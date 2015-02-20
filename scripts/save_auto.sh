@@ -8,16 +8,6 @@ source "$CURRENT_DIR/file_helpers.sh"
 source "$CURRENT_DIR/pane_helpers.sh"
 source "$CURRENT_DIR/save_helpers.sh"
 
-# @TODO:
-purge_stale_trigger(){
-  echo "$FUNCNAME: not implemented"
-}
-
-# @TODO:
-purge_stale_triggers() {
-  echo "$FUNCNAME: not implemented"
-}
-
 save_all_states() {
   local resurrect_file_path="$(resurrect_file_path)"
   mkdir -p "$(resurrect_dir)"
@@ -47,6 +37,7 @@ update_pane_trigger() {
   local frequency=$(save_auto_frequency) # minutes
   local frequency_sec=$(( frequency * 60 ))
   local return_status=0
+  local stderr_status=0
 
   # must have a pane_id!
   [[ -z "$pane_tty" ]] && return 255
