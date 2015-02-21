@@ -177,7 +177,7 @@ _purge_files() {
   IFS="$defaultIFS"
 
   # iterate over path list, skipping frequency count, deleting the rest
-  _count=0
+  local _count=0
   for file in "${file_path_list_sorted[@]}"; do
     (( _count++ ))
     [[ ${_count} -le ${frequency} ]] && continue
