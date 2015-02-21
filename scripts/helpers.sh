@@ -260,7 +260,7 @@ last_pane_buffer_file() {
   echo "$(resurrect_dir)/last_buffer-${pane_id}"
 }
 
-pane_actions_file() {
+pane_actions_file_path() {
   local pane_id="$1"
   local pane_tty="${2//\//@}"
 
@@ -270,7 +270,7 @@ pane_actions_file() {
   echo "$(resurrect_dir)/.actions-${pane_id}:${pane_tty}"
 }
 
-pane_trigger_file() {
+pane_trigger_file_path() {
   local pane_id="$1"
   local pane_tty="${2//\//@}"
 

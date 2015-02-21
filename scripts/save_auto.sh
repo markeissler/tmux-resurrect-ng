@@ -31,8 +31,8 @@ update_pane_trigger() {
   local history_file_pattern="$(pane_history_file_path "${pane_id}" "true")"
   local history_file_extension=".txt"
   local history_file_path=""
-  local actions_file_path="$(pane_actions_file "$pane_id" "$pane_tty")"
-  local trigger_file_path="$(pane_trigger_file "$pane_id" "$pane_tty")"
+  local actions_file_path="$(pane_actions_file_path "$pane_id" "$pane_tty")"
+  local trigger_file_path="$(pane_trigger_file_path "$pane_id" "$pane_tty")"
   local timeinsec=$(date +%s)
   local frequency=$(save_auto_frequency) # minutes
   local frequency_sec=$(( frequency * 60 ))
