@@ -32,6 +32,7 @@ restore_all() {
 
 main() {
   if [[ $(sanity_ok; echo $?) -eq 0 ]]; then
+    local session_name="$(get_session_name)"
     local state_file_path="$(last_resurrect_file)"
     local versions_str=""
     local restore_rslt version_rslt
@@ -50,6 +51,9 @@ main() {
     if [[ $(enable_restore_auto_on; echo $?) -eq 0 ]]; then
       # restore_auto is enabled, bump up status_index
       (( status_index++ ))
+
+      # create restore lock file
+      touch "$(restore_lock_file_path "$session_name")"
 
       # only try to restore if we have a supported state file
       if [[ $(check_saved_session_exists; echo $?) -eq 0 ]]; then
@@ -99,6 +103,9 @@ main() {
           fi
         fi
       fi
+
+      # remove restore lock file
+      rm -f "$(restore_lock_file_path "$session_name")"
     fi
   else
     # tmux version unsupported!

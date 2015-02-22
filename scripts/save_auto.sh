@@ -177,6 +177,7 @@ update_state() {
 
 main() {
   if [[ $(sanity_ok; echo $?) -eq 0 ]]; then
+    local session_name="$(get_session_name)"
     local state_rslt trigger_rslt purge_rslt
     local status_index=0
 
@@ -186,6 +187,7 @@ main() {
     #   1 - enabled, pending progress
     #   2 - state saved (state-recoverable)
     #   3 - state, buffer, history saved (recoverable)
+    # 253 - enabled, delayed due to restore lock
     # 254 - error
     # 255 - fatal
     #
@@ -193,6 +195,9 @@ main() {
     if [[ $(enable_save_auto_on; echo $?) -eq 0 ]]; then
       # save_auto is enabled, bump up status_index
       (( status_index++ ))
+
+      # delay if restore is in progress
+      [[ -f "$(restore_lock_file_path "$session_name")" ]] && return 253
 
       # save all states
       update_state; state_rslt=$?

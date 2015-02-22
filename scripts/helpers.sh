@@ -208,6 +208,15 @@ last_resurrect_file() {
   echo "$(resurrect_dir)/last"
 }
 
+restore_lock_file_path() {
+  local session_id="$1"
+
+  # must have a session_id!
+  [[ -z "$session_id" ]] && echo "" && return 1
+
+  echo "$(resurrect_dir)/.restore-${session_id}"
+}
+
 pane_history_file_path() {
   local pane_id="$1"
   local globstamp='[0-9]*'
