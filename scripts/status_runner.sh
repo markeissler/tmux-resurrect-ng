@@ -5,6 +5,7 @@ CURRENT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 source "$CURRENT_DIR/variables.sh"
 source "$CURRENT_DIR/helpers.sh"
 source "$CURRENT_DIR/proc_helpers.sh"
+source "$CURRENT_DIR/session_helpers.sh"
 
 # setup the status-right in .tmux.conf
 #
@@ -20,6 +21,7 @@ main() {
   local status_interval=$(get_status_interval) # seconds
   local status_index=0
   local status_codes=( 'X' '-' 'S' 'R' '?' '!' )
+  local purge_rslt
 
   #
   # status index
@@ -60,10 +62,10 @@ main() {
     [[ $status_index -eq 255 ]] && status_index=5
 
     # clear all actions
-    purge_actions_files
+    session_purge_actions_all
 
     # clear all triggers
-    purge_trigger_files
+    session_purge_triggers_all
   else
     #
     # run save_auto:
@@ -71,6 +73,17 @@ main() {
     #
     "$CURRENT_DIR/save_auto.sh"
     status_index=$?
+
+    if [[ $(enable_file_purge_on; echo $?) -eq 0 && $status_index -eq 3 ]]; then
+      # purge old state/history/buffer files
+      purge_all_files; purge_rslt=$?
+    fi
+
+    # clear dead actions (actions for panes that no longer exist)
+    session_purge_actions_dead
+
+    # clear dead triggers (triggers for panes that no longer exist)
+    session_purge_triggers_dead
   fi
 
   printf "%c\n" ${status_codes[$status_index]};
