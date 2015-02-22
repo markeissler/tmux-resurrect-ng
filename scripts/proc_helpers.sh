@@ -5,20 +5,22 @@
 #   helpers.sh
 #
 
-_ps_session_etime_command_strategy_file() {
-  local ps_session_etime_command_strategy="$(get_tmux_option "$ps_session_etime_command_strategy_option" "$default_ps_session_etime_command_strategy")"
-  local strategy_file="$CURRENT_DIR/../command_strategies/${ps_session_etime_command_strategy}.sh"
-  local default_strategy_file="$CURRENT_DIR/../command_strategies/${default_ps_session_etime_command_strategy}.sh"
-  if [ -e "$strategy_file" ]; then # strategy file exists?
+_session_etime_command_strategy_file() {
+  local strategy="$(get_tmux_option "$session_etime_command_strategy_option" "$default_session_etime_command_strategy")"
+  local strategy_file="$CURRENT_DIR/../command_strategies/${strategy}.sh"
+  local strategy_file_def="$CURRENT_DIR/../command_strategies/${default_session_etime_command_strategy}.sh"
+
+  # always fall back to default strategy
+  if [ -e "$strategy_file" ]; then
     echo "$strategy_file"
   else
-    echo "$default_strategy_file"
+    echo "$strategy_file_def"
   fi
 }
 
-ps_session_etime() {
+session_etime() {
   local file_path="$1"
-  local strategy_file="$(_ps_session_etime_command_strategy_file)"
+  local strategy_file="$(_session_etime_command_strategy_file)"
   # execute strategy script to get session age
   $strategy_file "$file_path"
 

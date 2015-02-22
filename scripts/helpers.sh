@@ -208,6 +208,15 @@ last_resurrect_file() {
   echo "$(resurrect_dir)/last"
 }
 
+restore_lock_file_path() {
+  local session_id="$1"
+
+  # must have a session_id!
+  [[ -z "$session_id" ]] && echo "" && return 1
+
+  echo "$(resurrect_dir)/.restore-${session_id}"
+}
+
 pane_history_file_path() {
   local pane_id="$1"
   local globstamp='[0-9]*'
@@ -260,7 +269,7 @@ last_pane_buffer_file() {
   echo "$(resurrect_dir)/last_buffer-${pane_id}"
 }
 
-pane_actions_file() {
+pane_actions_file_path() {
   local pane_id="$1"
   local pane_tty="${2//\//@}"
 
@@ -270,7 +279,7 @@ pane_actions_file() {
   echo "$(resurrect_dir)/.actions-${pane_id}:${pane_tty}"
 }
 
-pane_trigger_file() {
+pane_trigger_file_path() {
   local pane_id="$1"
   local pane_tty="${2//\//@}"
 
@@ -426,22 +435,6 @@ version_in_versionlist() {
   return_string+=", [${version_list_string// /, }]"
 
   echo "$return_string"; return $return_status
-}
-
-purge_actions_files() {
-  local actions_file_pattern='.actions-*'
-
-  rm -f "$(resurrect_dir)/"$actions_file_pattern > /dev/null 2>&1
-
-  return $?
-}
-
-purge_trigger_files() {
-  local trigger_file_pattern='.trigger-*'
-
-  rm -f "$(resurrect_dir)/"$trigger_file_pattern > /dev/null 2>&1
-
-  return $?
 }
 
 # this is used to get "clean" integer version number. Examples:

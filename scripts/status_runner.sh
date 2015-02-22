@@ -5,6 +5,7 @@ CURRENT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 source "$CURRENT_DIR/variables.sh"
 source "$CURRENT_DIR/helpers.sh"
 source "$CURRENT_DIR/proc_helpers.sh"
+source "$CURRENT_DIR/session_helpers.sh"
 
 # setup the status-right in .tmux.conf
 #
@@ -16,10 +17,11 @@ source "$CURRENT_DIR/proc_helpers.sh"
 
 main() {
   local session_name="$(get_session_name)"
-  local session_time=$( (ps_session_etime "$session_name") || echo -1 )
+  local session_time=$( (session_etime "$session_name") || echo -1 )
   local status_interval=$(get_status_interval) # seconds
   local status_index=0
-  local status_codes=( 'X' '-' 'S' 'R' '?' '!' )
+  local status_codes=( 'X' '-' 'S' 'R' 'D' '?' '!' )
+  local purge_rslt
 
   #
   # status index
@@ -27,6 +29,7 @@ main() {
   #   1 - enabled, pending progress
   #   2 - state saved/restored (not used for restore)
   #   3 - state, buffer, history saved/restored
+  # 253 - enabled, delayed due to restore lock
   # 254 - error
   # 255 - fatal
   #
@@ -56,14 +59,14 @@ main() {
     #
     "$CURRENT_DIR/restore_auto.sh"
     status_index=$?
-    [[ $status_index -eq 254 ]] && status_index=4
-    [[ $status_index -eq 255 ]] && status_index=5
+    [[ $status_index -eq 254 ]] && status_index=5
+    [[ $status_index -eq 255 ]] && status_index=6
 
     # clear all actions
-    purge_actions_files
+    session_purge_actions_all
 
     # clear all triggers
-    purge_trigger_files
+    session_purge_triggers_all
   else
     #
     # run save_auto:
@@ -71,6 +74,22 @@ main() {
     #
     "$CURRENT_DIR/save_auto.sh"
     status_index=$?
+    [[ $status_index -eq 253 ]] && status_index=4
+    [[ $status_index -eq 254 ]] && status_index=5
+    [[ $status_index -eq 255 ]] && status_index=6
+
+    if [[ $status_index -eq 3 ]]; then
+      if [[ $(enable_file_purge_on; echo $?) -eq 0 ]]; then
+        # purge old state/history/buffer files
+        purge_all_files; purge_rslt=$?
+      fi
+
+      # clear dead actions (actions for panes that no longer exist)
+      session_purge_actions_dead
+
+      # clear dead triggers (triggers for panes that no longer exist)
+      session_purge_triggers_dead
+    fi
   fi
 
   printf "%c\n" ${status_codes[$status_index]};

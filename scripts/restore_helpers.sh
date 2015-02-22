@@ -104,6 +104,10 @@ new_pane() {
 
 restore_pane() {
   local pane="$1"
+  # while loop local vars! because we are not piping into while
+  local line_type session_name dir
+  local window_number window_name window_active window_flags
+  local pane_index pane_active pane_command pane_full_command
   while IFS=$'\t' read line_type session_name window_number window_name window_active window_flags pane_index dir pane_active pane_command pane_full_command; do
     dir="$(remove_first_char "$dir")"
     window_name="$(remove_first_char "$window_name")"
@@ -132,6 +136,8 @@ restore_state() {
 }
 
 restore_all_panes() {
+  # while loop local vars! because we are not piping into while
+  local line
   while read line; do
     if is_line_type "pane" "$line"; then
       restore_pane "$line"
@@ -226,6 +232,8 @@ restore_active_and_alternate_windows() {
 }
 
 restore_active_and_alternate_sessions() {
+  # while loop local vars! because we are not piping into while
+  local line
   while read line; do
     if is_line_type "state" "$line"; then
       restore_state "$line"

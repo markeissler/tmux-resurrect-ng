@@ -5,20 +5,26 @@
 #   helpers.sh
 #
 
-_full_command_strategy_file() {
-  local save_command_strategy="$(get_tmux_option "$save_command_strategy_option" "$default_save_command_strategy")"
-  local strategy_file="$CURRENT_DIR/../save_command_strategies/${save_command_strategy}.sh"
-  local default_strategy_file="$CURRENT_DIR/../save_command_strategies/${default_save_command_strategy}.sh"
-  if [ -e "$strategy_file" ]; then # strategy file exists?
+_pane_full_command_strategy_file() {
+  local strategy="$(get_tmux_option "$pane_full_command_strategy_option" "$default_pane_full_command_strategy")"
+  local strategy_dep="$(get_tmux_option "$dep_pane_full_command_strategy_option" "")"
+  local strategy_file="$CURRENT_DIR/../save_command_strategies/${strategy}.sh"
+  local strategy_file_def="$CURRENT_DIR/../save_command_strategies/${default_pane_full_command_strategy}.sh"
+
+  # support deprecated option name
+  [[ -n "$strategy_dep" ]] && strategy_file="$CURRENT_DIR/../save_command_strategies/${strategy_dep}.sh"
+
+  # always fall back to default strategy
+  if [ -e "$strategy_file" ]; then
     echo "$strategy_file"
   else
-    echo "$default_strategy_file"
+    echo "$strategy_file_def"
   fi
 }
 
-full_command() {
+pane_full_command() {
   local pane_pid="$1"
-  local strategy_file="$(_full_command_strategy_file)"
+  local strategy_file="$(_pane_full_command_strategy_file)"
   # execute strategy script to get pane full command
   $strategy_file "$pane_pid"
 
