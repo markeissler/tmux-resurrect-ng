@@ -38,7 +38,7 @@ main() {
     #
     # fatal error - session time unavailable
     #
-    status_index=5
+    status_index=6
   elif [[ ( $status_interval -gt 0 && $session_time -lt $status_interval ) \
     || ( $status_interval -eq 0 && $session_time -lt 5 ) ]]; then
 
