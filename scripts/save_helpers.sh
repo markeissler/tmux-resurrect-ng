@@ -71,27 +71,54 @@ version_format() {
 }
 
 dump_panes_raw() {
-  tmux list-panes -a -F "$(pane_format)"
+  local session_name="$1" # optional
+
+  if [[ -n "$session_name" ]]; then
+    tmux list-panes -s -F "$(pane_format)" -t "$session_name"
+  else
+    tmux list-panes -a -F "$(pane_format)"
+  fi
 }
 
 # translates pane pid to process command running inside a pane
 dump_panes() {
-  local full_command
+  local session_name="$1" # optional
+  local full_command pane_data
   local d=$'\t' # delimiter
-  dump_panes_raw |
-    while IFS=$'\t' read line_type session_name window_number window_name window_active window_flags pane_index dir pane_active pane_command pane_pid; do
+
+  dump_panes_raw "$session_name" |
+    while IFS=$'\t' read _line_type _session_name _window_number _window_name _window_active _window_flags _pane_index _dir _pane_active _pane_command _pane_pid; do
       # check if current pane is part of a maximized window and if the pane is active
-      if [[ "${window_flags}" == *Z* ]] && [[ ${pane_active} == 1 ]]; then
+      if [[ "${_window_flags}" == *Z* ]] && [[ ${_pane_active} == 1 ]]; then
         # unmaximize the pane
-        tmux resize-pane -Z -t "${session_name}:${window_number}"
+        tmux resize-pane -Z -t "${_session_name}:${_window_number}"
       fi
-      full_command="$(pane_full_command $pane_pid)"
-      echo "${line_type}${d}${session_name}${d}${window_number}${d}${window_name}${d}${window_active}${d}${window_flags}${d}${pane_index}${d}${dir}${d}${pane_active}${d}${pane_command}${d}:${full_command}"
+      full_command="$(pane_full_command ${_pane_pid})"
+
+      pane_data="${_line_type}"
+      pane_data+="${d}${_session_name}"
+      pane_data+="${d}${_window_number}"
+      pane_data+="${d}${_window_name}"
+      pane_data+="${d}${_window_active}"
+      pane_data+="${d}${_window_flags}"
+      pane_data+="${d}${_pane_index}"
+      pane_data+="${d}${_dir}"
+      pane_data+="${d}${_pane_active}"
+      pane_data+="${d}${_pane_command}"
+      pane_data+="${d}:${full_command}"
+
+      echo "$pane_data"
     done
 }
 
 dump_windows() {
-  tmux list-windows -a -F "$(window_format)"
+  local session_name="$1" # optional
+
+  if [[ -n "$session_name" ]]; then
+    tmux list-windows -F "$(window_format)" -t "$session_name"
+  else
+    tmux list-windows -a -F "$(window_format)"
+  fi
 }
 
 dump_state() {
@@ -103,14 +130,18 @@ dump_version() {
 }
 
 dump_pane_histories() {
-  local target_pane_id="$1"
-  local state_file_path_link="$(last_resurrect_file)"
+  local session_name="$1"
+  local target_pane_id="$2"
+  local state_file_path_link="$(last_resurrect_file "$session_name")"
   local state_file_path_link_rslv="" # resolved file link path
   local timestamp=""
   local tmxr_dump_flag=false
 
+  # must have a session_name!
+  [[ -z "$session_name" ]] && return 1
+
   # tmxr_runner will set this flag to true, no one else should
-  [[ -n "$2" ]] && tmxr_dump_flag="$2"
+  [[ -n "$3" ]] && tmxr_dump_flag="$3"
 
   # resolve the file path link
   state_file_path_link_rslv="$(readlink -n $state_file_path_link)"
@@ -120,23 +151,27 @@ dump_pane_histories() {
     timestamp="$(find_timestamp_from_file "$state_file_path_link_rslv")"
   fi
 
-  dump_panes |
-    while IFS=$'\t' read line_type session_name window_number window_name window_active window_flags pane_index dir pane_active pane_command full_command; do
-      local pane_id="$session_name:$window_number.$pane_index"
-      [[ -n "$target_pane_id" && "$pane_id" != "$target_pane_id" ]] && continue
-      save_pane_history "$pane_id" "$pane_command" "$full_command" "$tmxr_dump_flag" "$timestamp"
+  dump_panes "$session_name" |
+    while IFS=$'\t' read _line_type _session_name _window_number _window_name _window_active _window_flags _pane_index _dir _pane_active _pane_command _full_command; do
+      local __pane_id="${_session_name}:${_window_number}.${_pane_index}"
+      [[ -n "$target_pane_id" && "${__pane_id}" != "$target_pane_id" ]] && continue
+      save_pane_history "${__pane_id}" "${_pane_command}" "${_full_command}" "$tmxr_dump_flag" "$timestamp"
     done
 }
 
 dump_pane_buffers() {
-  local target_pane_id="$1"
-  local state_file_path_link="$(last_resurrect_file)"
+  local session_name="$1"
+  local target_pane_id="$2"
+  local state_file_path_link="$(last_resurrect_file "$session_name")"
   local state_file_path_link_rslv="" # resolved file link path
   local timestamp=""
   local tmxr_dump_flag=false
 
+  # must have a session_name!
+  [[ -z "$session_name" ]] && return 1
+
   # tmxr_runner will set this flag to true, no one else should
-  [[ -n "$2" ]] && tmxr_dump_flag="$2"
+  [[ -n "$3" ]] && tmxr_dump_flag="$3"
 
   # resolve the file path link
   state_file_path_link_rslv="$(readlink -n $state_file_path_link)"
@@ -146,11 +181,11 @@ dump_pane_buffers() {
     timestamp="$(find_timestamp_from_file "$state_file_path_link_rslv")"
   fi
 
-  dump_panes |
-    while IFS=$'\t' read line_type session_name window_number window_name window_active window_flags pane_index dir pane_active pane_command full_command; do
-      local pane_id="$session_name:$window_number.$pane_index"
-      [[ -n "$target_pane_id" && "$pane_id" != "$target_pane_id" ]] && continue
-      save_pane_buffer "$pane_id" "$pane_command" "$full_command" "$tmxr_dump_flag" "$timestamp"
+  dump_panes "$session_name" |
+    while IFS=$'\t' read _line_type _session_name _window_number _window_name _window_active _window_flags _pane_index _dir _pane_active _pane_command _full_command; do
+      local __pane_id="${_session_name}:${_window_number}.${_pane_index}"
+      [[ -n "$target_pane_id" && "${__pane_id}" != "$target_pane_id" ]] && continue
+      save_pane_buffer "${__pane_id}" "${_pane_command}" "${_full_command}" "$tmxr_dump_flag" "$timestamp"
     done
 }
 
@@ -229,9 +264,13 @@ purge_history_files() {
 }
 
 purge_state_files() {
-  local state_file_pattern="$(resurrect_file_path "true")"
+  local session_name="$1"
+  local state_file_pattern="$(resurrect_file_path "$session_name" "true")"
   local frequency=$(file_purge_frequency) # max files to keep
   local return_status=0
+
+  # must have a session_name!
+  [[ -z "$session_name" ]] && return 1
 
   _purge_files "$state_file_pattern" "$frequency"
   return_status=$?
@@ -240,26 +279,30 @@ purge_state_files() {
 }
 
 purge_all_files() {
+  local session_name="$1"
   local return_status=0
   local purge_state_rslt
 
+  # must have a session_name!
+  [[ -z "$session_name" ]] && return 1
+
   # purge old states
-  purge_state_files; purge_state_rslt=$?
+  purge_state_files "$session_name"; purge_state_rslt=$?
   if [[ $purge_state_rslt -ne 0 ]]; then
     return_status=$purge_state_rslt
   else
-    while IFS=$'\t' read line_type session_name window_number window_name window_active window_flags pane_index dir pane_active pane_command full_command; do
-      local pane_id="$session_name:$window_number.$pane_index"
-      local rslt
+    while IFS=$'\t' read _line_type _session_name _window_number _window_name _window_active _window_flags _pane_index _dir _pane_active _pane_command _full_command; do
+      local __pane_id="${_session_name}:${_window_number}.${_pane_index}"
+      local __rslt
 
       # purge old buffer files
-      purge_buffer_files "$pane_id"; rslt=$?
-      [[ $rslt -gt $return_status ]] && return_status=$rslt && break
+      purge_buffer_files "${__pane_id}"; __rslt=$?
+      [[ ${__rslt} -gt $return_status ]] && return_status=${__rslt} && break
 
       # purge old history files
-      purge_history_files "$pane_id"; rslt=$?
-      [[ $rslt -gt $return_status ]] && return_status=$rslt && break
-    done < <(dump_panes)
+      purge_history_files "${__pane_id}"; __rslt=$?
+      [[ ${__rslt} -gt $return_status ]] && return_status=${__rslt} && break
+    done < <(dump_panes "$session_name")
   fi
 
   return $return_status

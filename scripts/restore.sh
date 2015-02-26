@@ -8,27 +8,36 @@ source "$CURRENT_DIR/restore_helpers.sh"
 source "$CURRENT_DIR/spinner_helpers.sh"
 
 restore_all() {
-  restore_all_panes
-  restore_pane_layout_for_each_window >/dev/null 2>&1
+  local session_name="$1"
+
+  local return_status=0
+
+  [[ -z "$session_name" ]] && return 1
+
+  restore_all_panes "$session_name"
+  restore_pane_layout_for_each_window "$session_name" >/dev/null 2>&1
   if enable_pane_history_on; then
-    restore_pane_histories
+    restore_pane_histories "$session_name"
   fi
   if enable_pane_buffers_on; then
     # ttys need to settle after getting cleared
     sleep 2
-    restore_pane_buffers
+    restore_pane_buffers "$session_name"
   fi
-  restore_all_pane_processes
+  restore_all_pane_processes "$session_name"
   # below functions restore exact cursor positions
-  restore_active_pane_for_each_window
-  restore_zoomed_windows
-  restore_active_and_alternate_windows
-  restore_active_and_alternate_sessions
+  restore_active_pane_for_each_window "$session_name"
+  restore_zoomed_windows "$session_name"
+  restore_active_and_alternate_windows "$session_name"
+  restore_active_and_alternate_sessions "$session_name"
+
+  return $return_status
 }
 
 main() {
   if [[ $(sanity_ok; echo $?) -eq 0 ]]; then
-    local state_file_path="$(last_resurrect_file)"
+    local session_name="$(get_session_name)"
+    local state_file_path="$(last_resurrect_file "$session_name")"
     local versions_str=""
     local restore_rslt version_rslt
     local status_index=0
@@ -46,7 +55,7 @@ main() {
     # restore pending progress, bump up status_index
     (( status_index++ ))
 
-    if [[ $(check_saved_session_exists; echo $?) -eq 0 ]]; then
+    if [[ $(check_saved_session_exists "$session_name"; echo $?) -eq 0 ]]; then
       versions_str="$(resurrect_file_version_ok "$state_file_path")"
       version_rslt=$?
 
@@ -82,7 +91,7 @@ main() {
         # we have valid state files
         start_spinner "Restoring..."
         sleep 4
-        restore_all; restore_rslt=$?
+        restore_all "$session_name"; restore_rslt=$?
         stop_spinner
         if [[ $restore_rslt -eq 0 ]]; then
           display_message "Restore complete!"

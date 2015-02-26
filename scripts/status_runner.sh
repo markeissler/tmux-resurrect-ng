@@ -17,7 +17,8 @@ source "$CURRENT_DIR/session_helpers.sh"
 
 main() {
   local session_name="$(get_session_name)"
-  local session_time=$( (session_etime "$session_name") || echo -1 )
+  local session_time=$( (session_ctime "$session_name") || echo -1 )
+  local srunner_path="$(session_srunner_file_path "$session_name" false "$session_time")"
   local status_interval=$(get_status_interval) # seconds
   local status_index=0
   local status_codes=( 'X' '-' 'S' 'R' 'D' '?' '!' )
@@ -39,8 +40,7 @@ main() {
     # fatal error - session time unavailable
     #
     status_index=6
-  elif [[ ( $status_interval -gt 0 && $session_time -lt $status_interval ) \
-    || ( $status_interval -eq 0 && $session_time -lt 5 ) ]]; then
+  elif [[ ! -f "$srunner_path" ]]; then
 
     # save session metrics
     if [[ $(enable_debug_mode_on; echo $?) -eq 0 ]]; then
@@ -67,6 +67,13 @@ main() {
 
     # clear all triggers
     session_purge_triggers_all
+
+    # clear all srunners
+    session_purge_srunners_all
+
+    # create new srunner file
+    touch "$srunner_path"
+    [[ $? -ne 0 && $status_index -lt 6 ]] && status_index=5
   else
     #
     # run save_auto:
@@ -81,7 +88,7 @@ main() {
     if [[ $status_index -eq 3 ]]; then
       if [[ $(enable_file_purge_on; echo $?) -eq 0 ]]; then
         # purge old state/history/buffer files
-        purge_all_files; purge_rslt=$?
+        purge_all_files "$session_name"; purge_rslt=$?
       fi
 
       # clear dead actions (actions for panes that no longer exist)
