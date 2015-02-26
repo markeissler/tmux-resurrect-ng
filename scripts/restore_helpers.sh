@@ -6,12 +6,6 @@
 #   process_restore_helpers.sh
 #
 
-# Global variable.
-# Used during the restore: if a pane already exists from before, it is
-# saved in the array in this variable. Later, process running in existing pane
-# is also not restored. That makes the restoration process more idempotent.
-EXISTING_PANES_VAR=""
-
 is_line_type() {
   local line_type="$1"
   local line="$2"
@@ -38,25 +32,6 @@ pane_exists() {
 
   tmux list-panes -t "${session_name}:${window_number}" -F "#{pane_index}" 2>/dev/null |
     \grep -q "^$pane_index$"
-}
-
-register_existing_pane() {
-  local session_name="$1"
-  local window_number="$2"
-  local pane_index="$3"
-  local pane_custom_id="${session_name}:${window_number}:${pane_index}"
-  local delimiter=$'\t'
-
-  EXISTING_PANES_VAR="${EXISTING_PANES_VAR}${delimiter}${pane_custom_id}"
-}
-
-is_pane_registered_as_existing() {
-  local session_name="$1"
-  local window_number="$2"
-  local pane_index="$3"
-  local pane_custom_id="${session_name}:${window_number}:${pane_index}"
-
-  [[ "$EXISTING_PANES_VAR" =~ "$pane_custom_id" ]]
 }
 
 window_exists() {
