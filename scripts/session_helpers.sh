@@ -32,6 +32,30 @@ session_etime() {
   echo "$session_etime"; return 1
 }
 
+session_exists() {
+  local session_name="$1"
+
+  tmux has-session -t "$session_name" 2>/dev/null
+}
+
+session_first_window_num() {
+  tmux show -gv base-index
+}
+
+session_new() {
+  local session_name="$1"
+  local window_number="$2"
+  local window_name="$3"
+  local dir="$4"
+
+  TMUX="" tmux -S "$(tmux_socket)" new-session -d -s "$session_name" -n "$window_name" -c "$dir"
+  # change first window number if necessary
+  local created_window_num="$(session_first_window_num)"
+  if [ $created_window_num -ne $window_number ]; then
+    tmux move-window -s "${session_name}:${created_window_num}" -t "${session_name}:${window_number}"
+  fi
+}
+
 session_pane_format() {
   local delimiter=$'\t'
   local format
@@ -362,4 +386,24 @@ session_srunner_file_path() {
   [[ "$use_globstamp" == true ]] && timestamp="$globstamp"
 
   echo "$(resurrect_dir)/.srunner-${session_name}_${timestamp}.run"
+}
+
+session_state_exists() {
+  local session_name="$1"
+  local resurrect_file_path="$(last_resurrect_file "$session_name")"
+
+  # failed to construct file path!
+  [[ $? -ne 0 ]] && return 255
+
+  if [ ! -f $resurrect_file_path ]; then
+    return 1
+  fi
+}
+
+session_window_exists() {
+  local session_name="$1"
+  local window_number="$2"
+
+  tmux list-windows -t "$session_name" -F "#{window_index}" 2>/dev/null |
+    \grep -q "^$window_number$"
 }

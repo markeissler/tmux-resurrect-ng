@@ -3,6 +3,7 @@
 # requires:
 #   variables.sh
 #   helpers.sh
+#   restore_helpers.sh
 #
 
 restore_pane_processes_enabled() {
@@ -47,7 +48,7 @@ _process_should_be_restored() {
   local window_number="$3"
   local pane_index="$4"
 
-  if ! pane_exists "$session_name" "$window_number" "$pane_index"; then
+  if ! window_pane_exists "$session_name" "$window_number" "$pane_index"; then
     # pane number limit exceeded, pane does not exist
     return 1
   elif _restore_all_processes; then

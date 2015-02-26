@@ -4,6 +4,7 @@ CURRENT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
 source "$CURRENT_DIR/variables.sh"
 source "$CURRENT_DIR/helpers.sh"
+source "$CURRENT_DIR/session_helpers.sh"
 source "$CURRENT_DIR/restore_helpers.sh"
 source "$CURRENT_DIR/spinner_helpers.sh"
 
@@ -29,7 +30,6 @@ restore_all() {
   restore_active_pane_for_each_window "$session_name"
   restore_zoomed_windows "$session_name"
   restore_active_and_alternate_windows "$session_name"
-  restore_active_and_alternate_sessions "$session_name"
 
   return $return_status
 }
@@ -55,7 +55,7 @@ main() {
     # restore pending progress, bump up status_index
     (( status_index++ ))
 
-    if [[ $(check_saved_session_exists "$session_name"; echo $?) -eq 0 ]]; then
+    if [[ $(session_state_exists "$session_name"; echo $?) -eq 0 ]]; then
       versions_str="$(resurrect_file_version_ok "$state_file_path")"
       version_rslt=$?
 
