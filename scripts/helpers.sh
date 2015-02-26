@@ -490,7 +490,7 @@ digits_from_string() {
 }
 
 remove_first_char() {
-  echo "$1" | cut -c2-
+  echo "${1:1}"
 }
 
 restore_zoomed_windows() {
