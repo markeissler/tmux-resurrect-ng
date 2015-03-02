@@ -156,16 +156,12 @@ session_purge_actions() {
   action_file_path_list_sorted=( $(echo "${action_file_path_list[*]}" | sort -r) )
   IFS="$defaultIFS"
 
-  # get list of panes
-  # IFS=$'\n'
-  # paneid_list=( $(session_panes $session_name) )
-  # IFS="$defaultIFS"
-
   # get list of panes, and stick in an assoc array
-  while IFS=$'\t' read _line_type _session_name _window_number _window_name _window_active _window_flags _pane_index _dir _pane_active _pane_command _full_command; do
-    local __paneid="${_session_name}:${_window_number}.${_pane_index}"
-    paneid_list["${__paneid}"]=1
-  done < <(session_panes $session_name)
+  session_panes "$session_name" |
+    while IFS=$'\t' read _line_type _session_name _window_number _window_name _window_active _window_flags _pane_index _dir _pane_active _pane_command _full_command; do
+      local __paneid="${_session_name}:${_window_number}.${_pane_index}"
+      paneid_list["${__paneid}"]=1
+    done
 
   # iterate over path list, deleting actions associated with a dead pane
   local _file _file_basename _file_paneid
@@ -243,16 +239,12 @@ session_purge_triggers() {
   trigger_file_path_list_sorted=( $(echo "${trigger_file_path_list[*]}" | sort -r) )
   IFS="$defaultIFS"
 
-  # get list of panes
-  # IFS=$'\n'
-  # paneid_list=( $(session_panes $session_name) )
-  # IFS="$defaultIFS"
-
   # get list of panes, and stick in an assoc array
-  while IFS=$'\t' read line_type session_name window_number window_name window_active window_flags pane_index dir pane_active pane_command full_command; do
-    local __paneid="$session_name:$window_number.$pane_index"
-    paneid_list["$__paneid"]=1
-  done < <(session_panes $session_name)
+  session_panes "$session_name" |
+    while IFS=$'\t' read _line_type _session_name _window_number _window_name _window_active _window_flags _pane_index _dir _pane_active _pane_command _full_command; do
+      local __paneid="${_session_name}:${_window_number}.${_pane_index}"
+      paneid_list["$__paneid"]=1
+    done
 
   # iterate over path list, deleting triggers associated with a dead pane
   local _file _file_basename _file_paneid #_file_sessionid

@@ -120,18 +120,20 @@ update_pane_triggers() {
   local session_name="$1"
   local return_status=0
 
-  while IFS=$'\t' read line_type session_name window_number window_name window_active window_flags pane_index dir pane_active pane_command full_command; do
-    update_pane_trigger "$session_name:$window_number.$pane_index" "$pane_command" "$full_command"
-    local rslt=$?
-    [[ $rslt -gt $return_status ]] && return_status=$rslt
-  done < <(dump_panes "$session_name")
+  session_panes "$session_name" |
+    while IFS=$'\t' read _line_type _session_name _window_number _window_name _window_active _window_flags _pane_index _dir _pane_active _pane_command _full_command; do
+      local __pane_id="${_session_name}:${_window_number}.${_pane_index}"
+      update_pane_trigger "${__pane_id}" "${_pane_command}" "${_full_command}"
+      local rslt=$?
+      [[ $rslt -gt $return_status ]] && return_status=$rslt
+    done
 
   return $return_status
 }
 
 update_state() {
   local session_name="$1"
-  local state_file_pattern="$(resurrect_dir)/$(resurrect_file_stub)"'*.txt'
+  local state_file_pattern="$(resurrect_file_path "$session_name" "true")"
   local state_file_path_list=()
   local state_file_path=""
   local timeinsec=$(date +%s)
@@ -168,7 +170,8 @@ update_state() {
   # save updated state if no file exists or file is stale
   if [[ $(enable_debug_mode_on; echo $?) -eq 0 ]]; then
     local debug_file_path="/tmp/tmxr_${session_name}.txt"
-    echo "   time_now: $timeinsec" > "$debug_file_path"
+    echo " state file: $state_file_path" > "$debug_file_path"
+    echo "   time_now: $timeinsec" >> "$debug_file_path"
     echo "state_mtime: $state_file_mtime" >> "$debug_file_path"
     echo "  state_age: $(( timeinsec - state_file_mtime ))" >> "$debug_file_path"
     echo "update_code: $return_status" >> "$debug_file_path"
