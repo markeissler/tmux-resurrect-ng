@@ -7,8 +7,6 @@
 default_resurrect_dir="$HOME/.tmux/resurrect-ng"
 resurrect_dir_option="@resurrect-dir"
 
-# TMUX_SUPPORTED_VERSION="1.9"
-
 ##
 # tmxr helpers
 ##
@@ -73,7 +71,24 @@ get_tmux_version() {
 }
 
 get_session_name() {
-  tmux display-message -p "#S"
+  local session_name="$TMXR_SESSION"
+  local return_status=0
+
+  if [[ -z "$session_name" ]]; then
+    session_name="$(tmux display-message -p "#S")"
+    return_status=1
+  fi
+
+  echo "$session_name"; return $return_status
+}
+
+set_session_name() {
+  local session_name="$1"
+
+  # must have a session_name!
+  [[ -z "$session_name" ]] && echo "" && return 1
+
+  TMXR_SESSION="$1"
 }
 
 get_pane_id() {

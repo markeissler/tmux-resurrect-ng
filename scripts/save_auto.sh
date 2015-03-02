@@ -183,9 +183,15 @@ update_state() {
 
 main() {
   if [[ $(sanity_ok; echo $?) -eq 0 ]]; then
-    local session_name="$(get_session_name)"
+    local session_name="$1"
     local state_rslt trigger_rslt purge_rslt
     local status_index=0
+
+    # we must have a session name!
+    [[ -z "$session_name" ]] && return 255
+
+    # set global session variable
+    set_session_name "$session_name"
 
     #
     # status index
