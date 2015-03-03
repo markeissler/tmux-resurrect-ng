@@ -88,9 +88,9 @@ session_panes_raw() {
   local list_target_opt=""
 
   # default behavior targets current session only
-  [[ -n "$session_name" ]] && list_target_opt="-t \"$session_name\""
+  [[ -n "$session_name" ]] && list_target_opt='-t '"$session_name"
 
-  tmux list-panes -s -F "$(session_pane_format)" $list_target_opt
+  tmux list-panes -s $list_target_opt -F "$(session_pane_format)"
 }
 
 # translates pane pid to process command running inside a pane
@@ -99,29 +99,29 @@ session_panes() {
   local full_command pane_data
   local d=$'\t' # delimiter
 
-  session_panes_raw "$session_name" |
-    while IFS=$'\t' read _line_type _session_name _window_number _window_name _window_active _window_flags _pane_index _dir _pane_active _pane_command _pane_pid; do
-      # check if current pane is part of a maximized window and if the pane is active
-      if [[ "${_window_flags}" == *Z* ]] && [[ ${_pane_active} == 1 ]]; then
-        # unmaximize the pane
-        tmux resize-pane -Z -t "${_session_name}:${_window_number}"
-      fi
-      full_command="$(pane_full_command ${_pane_pid})"
+  while IFS=$'\t' read _line_type _session_name _window_number _window_name _window_active _window_flags _pane_index _dir _pane_active _pane_command _pane_pid; do
+    # check if current pane is part of a maximized window and if the pane is active
+    if [[ "${_window_flags}" == *Z* ]] && [[ ${_pane_active} == 1 ]]; then
+      # unmaximize the pane
+      tmux resize-pane -Z -t "${_session_name}:${_window_number}"
+    fi
+    full_command="$(pane_full_command ${_pane_pid})"
 
-      pane_data="${_line_type}"
-      pane_data+="${d}${_session_name}"
-      pane_data+="${d}${_window_number}"
-      pane_data+="${d}${_window_name}"
-      pane_data+="${d}${_window_active}"
-      pane_data+="${d}${_window_flags}"
-      pane_data+="${d}${_pane_index}"
-      pane_data+="${d}${_dir}"
-      pane_data+="${d}${_pane_active}"
-      pane_data+="${d}${_pane_command}"
-      pane_data+="${d}:${full_command}"
+    pane_data="${_line_type}"
+    pane_data+="${d}${_session_name}"
+    pane_data+="${d}${_window_number}"
+    pane_data+="${d}${_window_name}"
+    pane_data+="${d}${_window_active}"
+    pane_data+="${d}${_window_flags}"
+    pane_data+="${d}${_pane_index}"
+    pane_data+="${d}${_dir}"
+    pane_data+="${d}${_pane_active}"
+    pane_data+="${d}${_pane_command}"
+    pane_data+="${d}:${full_command}"
 
-      echo "$pane_data"
-    done
+    echo "$pane_data"
+
+  done <<< "$(session_panes_raw "$session_name")"
 }
 
 # purge actions files for session
@@ -157,11 +157,10 @@ session_purge_actions() {
   IFS="$defaultIFS"
 
   # get list of panes, and stick in an assoc array
-  session_panes "$session_name" |
-    while IFS=$'\t' read _line_type _session_name _window_number _window_name _window_active _window_flags _pane_index _dir _pane_active _pane_command _full_command; do
-      local __paneid="${_session_name}:${_window_number}.${_pane_index}"
-      paneid_list["${__paneid}"]=1
-    done
+  while IFS=$'\t' read _line_type _session_name _window_number _window_name _window_active _window_flags _pane_index _dir _pane_active _pane_command _full_command; do
+    local __paneid="${_session_name}:${_window_number}.${_pane_index}"
+    paneid_list["${__paneid}"]=1
+  done <<< "$(session_panes "$session_name")"
 
   # iterate over path list, deleting actions associated with a dead pane
   local _file _file_basename _file_paneid
@@ -240,11 +239,10 @@ session_purge_triggers() {
   IFS="$defaultIFS"
 
   # get list of panes, and stick in an assoc array
-  session_panes "$session_name" |
-    while IFS=$'\t' read _line_type _session_name _window_number _window_name _window_active _window_flags _pane_index _dir _pane_active _pane_command _full_command; do
-      local __paneid="${_session_name}:${_window_number}.${_pane_index}"
-      paneid_list["$__paneid"]=1
-    done
+  while IFS=$'\t' read _line_type _session_name _window_number _window_name _window_active _window_flags _pane_index _dir _pane_active _pane_command _full_command; do
+    local __paneid="${_session_name}:${_window_number}.${_pane_index}"
+    paneid_list["$__paneid"]=1
+  done <<< "$(session_panes "$session_name")"
 
   # iterate over path list, deleting triggers associated with a dead pane
   local _file _file_basename _file_paneid #_file_sessionid

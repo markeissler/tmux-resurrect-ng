@@ -86,29 +86,28 @@ dump_panes() {
   local full_command pane_data
   local d=$'\t' # delimiter
 
-  dump_panes_raw "$session_name" |
-    while IFS=$'\t' read _line_type _session_name _window_number _window_name _window_active _window_flags _pane_index _dir _pane_active _pane_command _pane_pid; do
-      # check if current pane is part of a maximized window and if the pane is active
-      if [[ "${_window_flags}" == *Z* ]] && [[ ${_pane_active} == 1 ]]; then
-        # unmaximize the pane
-        tmux resize-pane -Z -t "${_session_name}:${_window_number}"
-      fi
-      full_command="$(pane_full_command ${_pane_pid})"
+  while IFS=$'\t' read _line_type _session_name _window_number _window_name _window_active _window_flags _pane_index _dir _pane_active _pane_command _pane_pid; do
+    # check if current pane is part of a maximized window and if the pane is active
+    if [[ "${_window_flags}" == *Z* ]] && [[ ${_pane_active} == 1 ]]; then
+      # unmaximize the pane
+      tmux resize-pane -Z -t "${_session_name}:${_window_number}"
+    fi
+    full_command="$(pane_full_command ${_pane_pid})"
 
-      pane_data="${_line_type}"
-      pane_data+="${d}${_session_name}"
-      pane_data+="${d}${_window_number}"
-      pane_data+="${d}${_window_name}"
-      pane_data+="${d}${_window_active}"
-      pane_data+="${d}${_window_flags}"
-      pane_data+="${d}${_pane_index}"
-      pane_data+="${d}${_dir}"
-      pane_data+="${d}${_pane_active}"
-      pane_data+="${d}${_pane_command}"
-      pane_data+="${d}:${full_command}"
+    pane_data="${_line_type}"
+    pane_data+="${d}${_session_name}"
+    pane_data+="${d}${_window_number}"
+    pane_data+="${d}${_window_name}"
+    pane_data+="${d}${_window_active}"
+    pane_data+="${d}${_window_flags}"
+    pane_data+="${d}${_pane_index}"
+    pane_data+="${d}${_dir}"
+    pane_data+="${d}${_pane_active}"
+    pane_data+="${d}${_pane_command}"
+    pane_data+="${d}:${full_command}"
 
-      echo "$pane_data"
-    done
+    echo "$pane_data"
+  done <<< "$(dump_panes_raw "$session_name")"
 }
 
 dump_windows() {
@@ -151,12 +150,11 @@ dump_pane_histories() {
     timestamp="$(find_timestamp_from_file "$state_file_path_link_rslv")"
   fi
 
-  dump_panes "$session_name" |
-    while IFS=$'\t' read _line_type _session_name _window_number _window_name _window_active _window_flags _pane_index _dir _pane_active _pane_command _full_command; do
-      local __pane_id="${_session_name}:${_window_number}.${_pane_index}"
-      [[ -n "$target_pane_id" && "${__pane_id}" != "$target_pane_id" ]] && continue
-      save_pane_history "${__pane_id}" "${_pane_command}" "${_full_command}" "$tmxr_dump_flag" "$timestamp"
-    done
+  while IFS=$'\t' read _line_type _session_name _window_number _window_name _window_active _window_flags _pane_index _dir _pane_active _pane_command _full_command; do
+    local __pane_id="${_session_name}:${_window_number}.${_pane_index}"
+    [[ -n "$target_pane_id" && "${__pane_id}" != "$target_pane_id" ]] && continue
+    save_pane_history "${__pane_id}" "${_pane_command}" "${_full_command}" "$tmxr_dump_flag" "$timestamp"
+  done <<< "$(dump_panes "$session_name")"
 }
 
 dump_pane_buffers() {
@@ -181,12 +179,11 @@ dump_pane_buffers() {
     timestamp="$(find_timestamp_from_file "$state_file_path_link_rslv")"
   fi
 
-  dump_panes "$session_name" |
-    while IFS=$'\t' read _line_type _session_name _window_number _window_name _window_active _window_flags _pane_index _dir _pane_active _pane_command _full_command; do
-      local __pane_id="${_session_name}:${_window_number}.${_pane_index}"
-      [[ -n "$target_pane_id" && "${__pane_id}" != "$target_pane_id" ]] && continue
-      save_pane_buffer "${__pane_id}" "${_pane_command}" "${_full_command}" "$tmxr_dump_flag" "$timestamp"
-    done
+  while IFS=$'\t' read _line_type _session_name _window_number _window_name _window_active _window_flags _pane_index _dir _pane_active _pane_command _full_command; do
+    local __pane_id="${_session_name}:${_window_number}.${_pane_index}"
+    [[ -n "$target_pane_id" && "${__pane_id}" != "$target_pane_id" ]] && continue
+    save_pane_buffer "${__pane_id}" "${_pane_command}" "${_full_command}" "$tmxr_dump_flag" "$timestamp"
+  done <<< "$(dump_panes "$session_name")"
 }
 
 _purge_files() {
@@ -302,7 +299,7 @@ purge_all_files() {
       # purge old history files
       purge_history_files "${__pane_id}"; __rslt=$?
       [[ ${__rslt} -gt $return_status ]] && return_status=${__rslt} && break
-    done < <(dump_panes "$session_name")
+    done <<< "$(dump_panes "$session_name")"
   fi
 
   return $return_status
@@ -316,13 +313,37 @@ save_pane_history() {
   local tmxr_dump_flag=false
   local history_file_path="$(pane_history_file_path "$pane_id" "false" "$timestamp")"
   local history_file_extension=".txt"
+  local pane_shell=""
   local update_status=0
 
   # tmxr_runner will set this flag to true, no one else should
   [[ -n "$4" ]] && tmxr_dump_flag="$4"
 
+  # figure out the running shell!
+  #
+  # NOTE: As of tmux-resurrect-ng 1.0, updates triggered by prompt_runner will
+  # indicate a pane_command of "tmux".
+  #
+  case "$pane_command" in
+    "bash" )
+      if [[ "$full_command" = ":" \
+        || ( "$tmxr_dump_flag" = true && "$full_command" = ":-bash" ) ]]; then
+        pane_shell="bash"
+      fi
+      ;;
+    "tmux" )
+      if [[ "$tmxr_dump_flag" = true && "$full_command" = ":-bash" ]]; then
+        pane_shell="bash"
+      fi
+      ;;
+    * )
+      # unsupported shell detected
+      return $update_status
+      ;;
+  esac
+
   # figure out history file extension
-  if [[ "$pane_command" == "bash" ]]; then
+  if [[ "$pane_shell" = "bash" ]]; then
     history_file_extension=".bsh"
   fi
   history_file_path+="$history_file_extension"
@@ -334,15 +355,14 @@ save_pane_history() {
   # When panes are dumped without prompt_runner, we a state file is written, the
   # pane_full_command will be empty (":", just a colon) when a pane is idling at
   # a shell prompt.
-  #
-  if [ "$pane_command" = "bash" ]; then
-    if [[ "$tmxr_dump_flag" = true  && "$full_command" = ":-bash" ]]; then
+  if [[ "$pane_shell" = "bash" ]]; then
+    if [[ "$tmxr_dump_flag" = true ]]; then
       # If tmxr_dump_flag is true, the history command is intended to be run
       # from a local function within the target pane. Likely PROMPT_COMMAND.
       history -w "$history_file_path"
 
       update_status=1
-    elif [ "$full_command" = ":" ]; then
+    else
       # leading space prevents the command from being saved to history
       # (assuming default HISTCONTROL settings)
       local write_command=" history -w \"$history_file_path\""
@@ -371,10 +391,34 @@ save_pane_buffer() {
   local prompt1 prompt2
   local prompt_len=0
   local sed_pattern=""
+  local pane_shell=""
   local update_status=0
 
   # tmxr_runner will set this flag to true, no one else should
   [[ -n "$4" ]] && tmxr_dump_flag="$4"
+
+  # figure out the running shell!
+  #
+  # NOTE: As of tmux-resurrect-ng 1.0, updates triggered by prompt_runner will
+  # indicate a pane_command of "tmux".
+  #
+  case "$pane_command" in
+    "bash" )
+      if [[ "$full_command" = ":" \
+        || ( "$tmxr_dump_flag" = true && "$full_command" = ":-bash" ) ]]; then
+        pane_shell="bash"
+      fi
+      ;;
+    "tmux" )
+      if [[ "$tmxr_dump_flag" = true && "$full_command" = ":-bash" ]]; then
+        pane_shell="bash"
+      fi
+      ;;
+    * )
+      # unsupported shell detected
+      return $update_status
+      ;;
+  esac
 
   # figure out buffer file extension
   if [[ $(enable_pane_ansi_buffers_on; echo $?) -eq 0 ]]; then
@@ -389,55 +433,51 @@ save_pane_buffer() {
   # When panes are dumped without prompt_runner, we a state file is written, the
   # pane_full_command will be empty (":", just a colon) when a pane is idling at
   # a shell prompt.
-  #
-  if [[ "$pane_command" = "bash" ]]; then
-    if [[ "$full_command" = ":" \
-      || ( "$tmxr_dump_flag" = true && "$full_command" = ":-bash" ) ]]; then
-      # adjust tmux capture options
-      local capture_color_opt=""
-      local ansi_buffer_reset=""
-      if enable_pane_ansi_buffers_on; then
-        capture_color_opt="-e "
-        ansi_buffer_reset=$'\e[0m' # buffer sometimes ends on a color!
-      fi
-      tmux capture-pane ${capture_color_opt} -t "${pane_id}" -S -32768 \; save-buffer -b 0 "${buffer_file_path}" \; delete-buffer -b 0
-
-      # strip trailing empty lines from saved buffer
-      local _filecontent=$(<"${buffer_file_path}")
-      printf "%s%b\n" "${_filecontent/$'\n'}" "$ansi_buffer_reset" > "${buffer_file_path}.bak"
-      if [[ $? -eq 0 ]]; then
-        cp "${buffer_file_path}.bak" "$buffer_file_path"
-      fi
-      rm "${buffer_file_path}.bak" &> /dev/null
-      unset _filecontent
-
-      if [[ "$tmxr_dump_flag" = false ]]; then
-        # calculate line span of bash prompt
-        #
-        # We use an interactive bash shell to grab a baseline count, then run the
-        # process again with a carriage return. The difference is the prompt span.
-        #
-        # NOTE: We do not rely on PS1 here because it could involve expansions.
-        #
-        prompt1=$( (echo '';) | bash -i 2>&1 | sed -n '$=')
-        prompt2=$( (echo $'\n') | bash -i 2>&1 | sed -n '$=')
-        (( prompt_len=prompt2-prompt1 ))
-
-        #  add another prompt_len to account for the "history" command execution
-        (( prompt_len+=prompt_len ))
-
-
-        # strip history command and next trailing prompt
-        if [ $prompt_len -gt 0 ]; then
-          sed_pattern='1,'${prompt_len}'!{P;N;D;};N;ba'
-          sed -i.bak -n -e ':a' -e "${sed_pattern}" "${buffer_file_path}" &>/dev/null
-        fi
-      fi
-
-      rm "${buffer_file_path}.bak" &> /dev/null
-
-      update_status=1
+  if [[ "$pane_shell" = "bash" ]]; then
+    # adjust tmux capture options
+    local capture_color_opt=""
+    local ansi_buffer_reset=""
+    if enable_pane_ansi_buffers_on; then
+      capture_color_opt="-e "
+      ansi_buffer_reset=$'\e[0m' # buffer sometimes ends on a color!
     fi
+    tmux capture-pane ${capture_color_opt} -t "${pane_id}" -S -32768 \; save-buffer -b 0 "${buffer_file_path}" \; delete-buffer -b 0
+
+    # strip trailing empty lines from saved buffer
+    local _filecontent=$(<"${buffer_file_path}")
+    printf "%s%b\n" "${_filecontent/$'\n'}" "$ansi_buffer_reset" > "${buffer_file_path}.bak"
+    if [[ $? -eq 0 ]]; then
+      cp "${buffer_file_path}.bak" "$buffer_file_path"
+    fi
+    rm "${buffer_file_path}.bak" &> /dev/null
+    unset _filecontent
+
+    if [[ "$tmxr_dump_flag" = false ]]; then
+      # calculate line span of bash prompt
+      #
+      # We use an interactive bash shell to grab a baseline count, then run the
+      # process again with a carriage return. The difference is the prompt span.
+      #
+      # NOTE: We do not rely on PS1 here because it could involve expansions.
+      #
+      prompt1=$( (echo '';) | bash -i 2>&1 | sed -n '$=')
+      prompt2=$( (echo $'\n') | bash -i 2>&1 | sed -n '$=')
+      (( prompt_len=prompt2-prompt1 ))
+
+      #  add another prompt_len to account for the "history" command execution
+      (( prompt_len+=prompt_len ))
+
+
+      # strip history command and next trailing prompt
+      if [ $prompt_len -gt 0 ]; then
+        sed_pattern='1,'${prompt_len}'!{P;N;D;};N;ba'
+        sed -i.bak -n -e ':a' -e "${sed_pattern}" "${buffer_file_path}" &>/dev/null
+      fi
+    fi
+
+    rm "${buffer_file_path}.bak" &> /dev/null
+
+    update_status=1
   fi
 
   # relink last to current file

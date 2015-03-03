@@ -4,6 +4,7 @@ CURRENT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
 source "$CURRENT_DIR/variables.sh"
 source "$CURRENT_DIR/helpers.sh"
+source "$CURRENT_DIR/session_helpers.sh"
 source "$CURRENT_DIR/pane_helpers.sh"
 source "$CURRENT_DIR/save_helpers.sh"
 

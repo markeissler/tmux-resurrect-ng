@@ -55,33 +55,32 @@ restore_pane_for_state() {
   # must have a pane_sstate_record!
   [[ -z "$pane_sstate_record" ]] && return 1
 
-  echo "$pane_sstate_record" |
-    while IFS=$'\t' read _line_type _session_name _window_number _window_name _window_active _window_flags _pane_index _dir _pane_active _pane_command _pane_full_command; do
-      local __window_id="${_session_name}:${_window_number}"
-      _dir="$(remove_first_char "${_dir}")"
-      _window_name="$(remove_first_char "${_window_name}")"
-      _pane_full_command="$(remove_first_char "${_pane_full_command}")"
+  while IFS=$'\t' read _line_type _session_name _window_number _window_name _window_active _window_flags _pane_index _dir _pane_active _pane_command _pane_full_command; do
+    local __window_id="${_session_name}:${_window_number}"
+    _dir="$(remove_first_char "${_dir}")"
+    _window_name="$(remove_first_char "${_window_name}")"
+    _pane_full_command="$(remove_first_char "${_pane_full_command}")"
 
-      # pane exists? no need to create it! keep going...
-      [[ $(window_pane_exists "${__window_id}" "${_pane_index}"; echo $?) -eq 0 ]] && continue;
+    # pane exists? no need to create it! keep going...
+    [[ $(window_pane_exists "${__window_id}" "${_pane_index}"; echo $?) -eq 0 ]] && continue;
 
-      # window exists? no need to create it! create the pane...
-      if [[ $(session_window_exists "${_session_name}" "${_window_number}"; echo $?) -eq 0 ]]; then
-        new_pane "${_session_name}" "${_window_number}" "${_window_name}" "${_dir}"
-        continue
-      fi
+    # window exists? no need to create it! create the pane...
+    if [[ $(session_window_exists "${_session_name}" "${_window_number}"; echo $?) -eq 0 ]]; then
+      new_pane "${_session_name}" "${_window_number}" "${_window_name}" "${_dir}"
+      continue
+    fi
 
-      if [[ $(session_exists "${_session_name}"; echo $?) -eq 0 ]]; then
-        new_window "${_session_name}" "${_window_number}" "${_window_name}" "${_dir}"
-        continue
-      fi
+    if [[ $(session_exists "${_session_name}"; echo $?) -eq 0 ]]; then
+      new_window "${_session_name}" "${_window_number}" "${_window_name}" "${_dir}"
+      continue
+    fi
 
-      # @TODO: handle no session erro
-      #
-      # if we get this far, then we've reached an error because the session
-      # doesn't yet exist.
-      #
-    done
+    # @TODO: handle no session erro
+    #
+    # if we get this far, then we've reached an error because the session
+    # doesn't yet exist.
+    #
+  done <<< "$(echo "$pane_sstate_record")"
 }
 
 restore_all_panes() {
@@ -116,15 +115,15 @@ restore_pane_history() {
 
 restore_pane_histories() {
   local session_name="$1"
+  local last_state_file="$(last_resurrect_file "$session_name")"
 
   # must have a session_name!
   [[ -z "$session_name" ]] && return 1
 
-  awk 'BEGIN { FS="\t"; OFS="\t" } /^pane/ { print $2, $3, $7, $10; }' $(last_resurrect_file "$session_name") |
-    while IFS=$'\t' read _session_name _window_number _pane_index _pane_command; do
-      local __pane_id="${_session_name}:${_window_number}.${_pane_index}"
-      restore_pane_history "${__pane_id}" "${_pane_command}"
-    done
+  while IFS=$'\t' read _session_name _window_number _pane_index _pane_command; do
+    local __pane_id="${_session_name}:${_window_number}.${_pane_index}"
+    restore_pane_history "${__pane_id}" "${_pane_command}"
+  done <<< "$(awk 'BEGIN { FS="\t"; OFS="\t" } /^pane/ { print $2, $3, $7, $10; }' "$last_state_file")"
 }
 
 restore_pane_buffer() {
@@ -153,68 +152,67 @@ restore_pane_buffer() {
 
 restore_pane_buffers() {
   local session_name="$1"
+  local last_state_file="$(last_resurrect_file "$session_name")"
 
   # must have a session_name!
   [[ -z "$session_name" ]] && return 1
 
-  awk 'BEGIN { FS="\t"; OFS="\t" } /^pane/ { print $2, $3, $7, $10; }' $(last_resurrect_file "$session_name") |
-    while IFS=$'\t' read _session_name _window_number _pane_index _pane_command; do
-      local __pane_id="${_session_name}:${_window_number}.${_pane_index}"
-      restore_pane_buffer "${__pane_id}" "${_pane_command}"
-    done
+  while IFS=$'\t' read _session_name _window_number _pane_index _pane_command; do
+    local __pane_id="${_session_name}:${_window_number}.${_pane_index}"
+    restore_pane_buffer "${__pane_id}" "${_pane_command}"
+  done <<< "$(awk 'BEGIN { FS="\t"; OFS="\t" } /^pane/ { print $2, $3, $7, $10; }' "$last_state_file")"
 }
 
 restore_all_pane_processes() {
   local session_name="$1"
+  local last_state_file="$(last_resurrect_file "$session_name")"
 
   # must have a session_name!
   [[ -z "$session_name" ]] && return 1
 
   if restore_pane_processes_enabled; then
     local pane_full_command
-    awk 'BEGIN { FS="\t"; OFS="\t" } /^pane/ && $11 !~ "^:$" { print $2, $3, $7, $8, $11; }' $(last_resurrect_file "$session_name") |
-      while IFS=$'\t' read _session_name _window_number _pane_index _dir _pane_full_command; do
-        _dir="$(remove_first_char "${_dir}")"
-        _pane_full_command="$(remove_first_char "${_pane_full_command}")"
-        restore_pane_process "${_pane_full_command}" "${_session_name}" "${_window_number}" "${_pane_index}" "${_dir}"
-      done
+    while IFS=$'\t' read _session_name _window_number _pane_index _dir _pane_full_command; do
+      _dir="$(remove_first_char "${_dir}")"
+      _pane_full_command="$(remove_first_char "${_pane_full_command}")"
+      restore_pane_process "${_pane_full_command}" "${_session_name}" "${_window_number}" "${_pane_index}" "${_dir}"
+    done <<< "$(awk 'BEGIN { FS="\t"; OFS="\t" } /^pane/ && $11 !~ "^:$" { print $2, $3, $7, $8, $11; }' "$last_state_file")"
   fi
 }
 
 restore_pane_layout_for_each_window() {
   local session_name="$1"
+  local last_state_file="$(last_resurrect_file "$session_name")"
 
   # must have a session_name!
   [[ -z "$session_name" ]] && return 1
 
-  \grep '^window' $(last_resurrect_file "$session_name") |
-    while IFS=$'\t' read _line_type _session_name _window_number _window_active _window_flags _window_layout; do
-      tmux select-layout -t "${_session_name}:${_window_number}" "${_window_layout}"
-    done
+  while IFS=$'\t' read _line_type _session_name _window_number _window_active _window_flags _window_layout; do
+    tmux select-layout -t "${_session_name}:${_window_number}" "${_window_layout}"
+  done <<< "$(\grep '^window' "$last_state_file")"
 }
 
 restore_active_pane_for_each_window() {
   local session_name"$1"
+  local last_state_file="$(last_resurrect_file "$session_name")"
 
   # must have a session_name!
   [[ -z "$session_name" ]] && return 1
 
-  awk 'BEGIN { FS="\t"; OFS="\t" } /^pane/ && $9 == 1 { print $2, $3, $7; }' $(last_resurrect_file "$session_name") |
-    while IFS=$'\t' read _session_name _window_number _active_pane; do
-      tmux switch-client -t "${_session_name}:${_window_number}"
-      tmux select-pane -t "${_active_pane}"
-    done
+  while IFS=$'\t' read _session_name _window_number _active_pane; do
+    tmux switch-client -t "${_session_name}:${_window_number}"
+    tmux select-pane -t "${_active_pane}"
+  done <<< "$(awk 'BEGIN { FS="\t"; OFS="\t" } /^pane/ && $9 == 1 { print $2, $3, $7; }' "$last_state_file")"
 }
 
 restore_active_and_alternate_windows() {
   local session_name"$1"
+  local last_state_file="$(last_resurrect_file "$session_name")"
 
   # must have a session_name!
   [[ -z "$session_name" ]] && return 1
 
-  awk 'BEGIN { FS="\t"; OFS="\t" } /^window/ && $5 ~ /[*-]/ { print $2, $4, $3; }' $(last_resurrect_file "$session_name") |
-    sort -u |
-    while IFS=$'\t' read _session_name _active_window _window_number; do
-      tmux switch-client -t "${_session_name}:${_window_number}"
-    done
+  while IFS=$'\t' read _session_name _active_window _window_number; do
+    tmux switch-client -t "${_session_name}:${_window_number}"
+  done <<< "$(awk 'BEGIN { FS="\t"; OFS="\t" } /^window/ && $5 ~ /[*-]/ { print $2, $4, $3; }' "$last_state_file" | sort -u)"
 }

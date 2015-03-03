@@ -5,6 +5,7 @@ CURRENT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 source "$CURRENT_DIR/variables.sh"
 source "$CURRENT_DIR/helpers.sh"
 source "$CURRENT_DIR/file_helpers.sh"
+source "$CURRENT_DIR/session_helpers.sh"
 source "$CURRENT_DIR/pane_helpers.sh"
 source "$CURRENT_DIR/save_helpers.sh"
 
@@ -120,13 +121,12 @@ update_pane_triggers() {
   local session_name="$1"
   local return_status=0
 
-  session_panes "$session_name" |
-    while IFS=$'\t' read _line_type _session_name _window_number _window_name _window_active _window_flags _pane_index _dir _pane_active _pane_command _full_command; do
-      local __pane_id="${_session_name}:${_window_number}.${_pane_index}"
-      update_pane_trigger "${__pane_id}" "${_pane_command}" "${_full_command}"
-      local rslt=$?
-      [[ $rslt -gt $return_status ]] && return_status=$rslt
-    done
+  while IFS=$'\t' read _line_type _session_name _window_number _window_name _window_active _window_flags _pane_index _dir _pane_active _pane_command _full_command; do
+    local __pane_id="${_session_name}:${_window_number}.${_pane_index}"
+    update_pane_trigger "${__pane_id}" "${_pane_command}" "${_full_command}"
+    local rslt=$?
+    [[ $rslt -gt $return_status ]] && return_status=$rslt
+  done <<< "$(session_panes "$session_name")"
 
   return $return_status
 }
