@@ -17,7 +17,6 @@ save_all_states() {
   dump_version >  "$resurrect_file_path"
   dump_panes "$session_name"  >> "$resurrect_file_path"
   dump_windows "$session_name" >> "$resurrect_file_path"
-  dump_state >> "$resurrect_file_path"
   ln -fs "$(basename "$resurrect_file_path")" "$(last_resurrect_file "$session_name")"
   restore_zoomed_windows "$session_name"
 }

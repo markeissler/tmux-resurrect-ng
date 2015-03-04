@@ -16,7 +16,6 @@ save_all() {
   dump_version > "$resurrect_file_path"
   dump_panes "$session_name" >> "$resurrect_file_path"
   dump_windows "$session_name" >> "$resurrect_file_path"
-  dump_state >> "$resurrect_file_path"
   ln -fs "$(basename "$resurrect_file_path")" "$(last_resurrect_file "$session_name")"
   if enable_pane_history_on; then
     dump_pane_histories "$session_name"

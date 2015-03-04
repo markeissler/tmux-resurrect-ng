@@ -50,17 +50,6 @@ window_format() {
   echo "$format"
 }
 
-state_format() {
-  local delimiter=$'\t'
-  local format
-  format+="state"
-  format+="${delimiter}"
-  format+="#{client_session}"
-  format+="${delimiter}"
-  format+="#{client_last_session}"
-  echo "$format"
-}
-
 version_format() {
   local delimiter=$'\t'
   local format
@@ -118,10 +107,6 @@ dump_windows() {
   else
     tmux list-windows -a -F "$(window_format)"
   fi
-}
-
-dump_state() {
-  tmux display-message -p "$(state_format)"
 }
 
 dump_version() {
