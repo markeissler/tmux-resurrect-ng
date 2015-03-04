@@ -59,15 +59,65 @@ g_tmxr_buffer_extension="$g_tmxr_buffer_extension_static"
 g_tmxr_history_extension=".bsh" # .bsh (bash), .txt (non-specific shell)
 g_tmxr_state_extension=".txt"
 #
+g_tmxr_debug_file="/tmp/tmxr_migrate.out"
+#
 g_debug=0
-g_noise=1
+g_noise=2
+
+# extract a list of unique session names from a list of file paths
+find_session_names_from_files() {
+  local file_list=()
+  local session_name_list=()
+  local session_name_list_sorted=()
+  local session_name_pattern='s/^.*-([[:alnum:][:punct:]]+)(\.[[:alpha:]]+)+$/\1/'
+  local defaultIFS="$IFS"
+  local IFS="$defaultIFS"
+  local return_status=0
+
+  IFS=$' ' file_list=( $1 ) IFS="$defaultIFS"
+
+  # we need a file list!
+  [[ "${#file_list[@]}" -eq 0 ]] && return 255
+
+  # delete non-matching lines (where substitution fails)
+  #   -e 'tx' -e 'd' -e ':x'
+  # where...
+  #   tx - branches to label x if substitution is successful
+  #   d  - deletes line
+  #   :x - marker for label 'x'
+  #
+  # see: http://stackoverflow.com/a/1665662/3321356
+  #
+
+  # We iterate over the file list, extracting session names from each file name.
+  local _file _file_basename _session_name
+  for _file in "${file_list[@]}"; do
+    _file_basename="$(basename "${_file}")"
+    _session_name="$(echo "${_file_basename}" \
+      | sed -E -e "$session_name_pattern" -e 'tx' -e 'd' -e ':x')"
+    if [[ -n "${_session_name}" ]]; then
+      session_name_list+=( "${_session_name}" )
+    fi
+    echo "$_file_basename" >> /tmp/rest.out
+    _session_name=""
+  done
+  unset _file _file_basename _session_name
+
+  # sort and dedupe the session_name list
+  session_name_list_sorted=( $(printf "%s" "${session_name_list[*]}" | sort -r | uniq) )
+
+  # done!
+  printf "%s" "${session_name_list_sorted[*]}"
+
+  return $return_status
+}
 
 # extract a list of unique pane ids from a list of file paths
 find_paneids_from_files() {
   local file_list=()
   local paneid_list=()
   local paneid_list_sorted=()
-  local paneid_pattern='s/^.*-([[:alnum:][:punct:]]+:[[:digit:]]+\.[[:digit:]]+)(\.[[:alpha:]]+)*$/\1/'
+  local paneid_pattern='s/^.*-([[:alnum:][:punct:]]+:[[:digit:]]+\.[[:digit:]]+)(\.[[:alpha:]]+)+$/\1/'
   local defaultIFS="$IFS"
   local IFS="$defaultIFS"
   local return_status=0
@@ -128,8 +178,8 @@ migrate_history_files() {
   IFS="$defaultIFS"
 
   if [[ "$g_debug" -ne 0 ]]; then
-    echo "$stderr_status"
-    echo "${#file_path_list}"
+    echo "$FUNCNAME - stderr_status: $stderr_status" >> "$g_tmxr_debug_file"
+    echo "$FUNCNAME - file_path_list count: ${#file_path_list}" >> "$g_tmxr_debug_file"
   fi
 
   # iterate over list
@@ -141,7 +191,7 @@ migrate_history_files() {
     _file_basename="$(basename "${_file}")"
 
     if [[ "$g_debug" -ne 0 ]]; then
-      printf "renaming: %s\n" "${_file_basename}"
+      printf "renaming: %s\n" "${_file_basename}" >> "$g_tmxr_debug_file"
     fi
 
     ## get age of file (stat)
@@ -155,7 +205,7 @@ migrate_history_files() {
     _file_renamed+="$g_tmxr_history_extension"
 
     if [[ "$g_debug" -ne 0 ]]; then
-      printf "     -->: %s\n" "${_file_renamed}"
+      printf "     -->: %s\n" "${_file_renamed}" >> "$g_tmxr_debug_file"
     fi
 
     # copy original to renamed file
@@ -176,9 +226,7 @@ migrate_history_files() {
   unset _file _file_basename _file_renamed
 
   # return array of migrated files
-  if [[ "$g_debug" -eq 0 ]]; then
-    printf "%s\n" "${migrated_file_path_list[@]}"
-  fi
+  printf "%s\n" "${migrated_file_path_list[@]}"
 
   return $return_status
 }
@@ -202,8 +250,8 @@ migrate_buffer_files() {
   IFS="$defaultIFS"
 
   if [[ "$g_debug" -ne 0 ]]; then
-    echo "$stderr_status"
-    echo "${#file_path_list}"
+    echo "$FUNCNAME - stderr_status: $stderr_status" >> "$g_tmxr_debug_file"
+    echo "$FUNCNAME - file_path_list count: ${#file_path_list}" >> "$g_tmxr_debug_file"
   fi
 
   # iterate over list
@@ -215,7 +263,7 @@ migrate_buffer_files() {
     _file_basename="$(basename "${_file}")"
 
     if [[ "$g_debug" -ne 0 ]]; then
-      printf "renaming: %s\n" "${_file_basename}"
+      printf "renaming: %s\n" "${_file_basename}" >> "$g_tmxr_debug_file"
     fi
 
     ## get age of file (stat)
@@ -229,7 +277,7 @@ migrate_buffer_files() {
     _file_renamed+="$g_tmxr_buffer_extension"
 
     if [[ "$g_debug" -ne 0 ]]; then
-      printf "     -->: %s\n" "${_file_renamed}"
+      printf "     -->: %s\n" "${_file_renamed}" >> "$g_tmxr_debug_file"
     fi
 
     # copy original to renamed file
@@ -250,9 +298,7 @@ migrate_buffer_files() {
   unset _file _file_basename _file_renamed
 
   # return array of migrated files
-  if [[ "$g_debug" -eq 0 ]]; then
-    printf "%s\n" "${migrated_file_path_list[@]}"
-  fi
+  printf "%s\n" "${migrated_file_path_list[@]}"
 
   return $return_status
 }
@@ -266,6 +312,8 @@ migrate_state_files() {
   local file_path_link_rslv="" # resolved file link path
   local migrated_file_path_list=()
   local tmxr_version="$(tmxr_version)"
+  local session_name_list=()
+  local session_name_list_sorted=()
   local defaultIFS="$IFS"
   local IFS="$defaultIFS"
   local return_status=0
@@ -279,44 +327,69 @@ migrate_state_files() {
   IFS="$defaultIFS"
 
   if [[ "$g_debug" -ne 0 ]]; then
-    echo "$stderr_status"
-    echo "${#file_path_list}"
+    echo "$FUNCNAME - stderr_status: $stderr_status" >> "$g_tmxr_debug_file"
+    echo "$FUNCNAME - file_path_list count: ${#file_path_list}" >> "$g_tmxr_debug_file"
   fi
 
   # iterate over list
   local _count=0
   local _mtime=0
-  local _file _file_basename _file_dirname _file_renamed
+  local _file _file_basename
   for _file in "${file_path_list[@]}"; do
     (( _count++ ))
     _file_basename="$(basename "${_file}")"
 
     if [[ "$g_debug" -ne 0 ]]; then
-      printf "renaming: %s\n" "${_file_basename}"
+      printf "renaming: %s\n" "${_file_basename}" >> "$g_tmxr_debug_file"
     fi
 
     ## get age of file (stat)
     _mtime="$(stat_mtime "${_file}")"
 
-    _file_renamed="$(echo "${_file_basename}" \
-      | sed -E -e "s/^tmux_resurrect_([[:alnum:][:punct:]]+\.txt$)/tmxr_${_mtime}/")"
+    # extract session names from file, stuff into session_name list
+    while IFS=$'\t' read _session_name; do
+      [[ -z "${_session_name}" ]] && continue;
+      session_name_list+=( "${_session_name}" )
+    done <<< "$(awk 'BEGIN { FS="\t"; OFS="\t" } /^pane/ && $9 == 1 { print $2; }' "${_file}")"
 
-    # add extension
-    _file_renamed+="$g_tmxr_state_extension"
+    # sort and dedupe the session_name list
+    session_name_list_sorted=( $(printf "%s" "${session_name_list[*]}" | sort -r | uniq) )
 
-    if [[ "$g_debug" -ne 0 ]]; then
-      printf "     -->: %s\n" "${_file_renamed}"
-    fi
+    # migrate data for each session in file to a new session_name-based file
+    local _session_name
+    local _file_renamed
+    for _session_name in "${session_name_list_sorted[@]}"; do
+      _file_renamed="tmxr_${_mtime}_sstate-${_session_name}"
 
-    # create renamed file and append tmxr_version line
-    printf "vers%c%s\n" $'\t' "$tmxr_version" > "${g_tmxr_directory_ng}/${_file_renamed}"
+      # add extension
+      _file_renamed+="$g_tmxr_state_extension"
 
-    # append original content to renamed file
-    cat "${_file}" >> "${g_tmxr_directory_ng}/${_file_renamed}"
-    [[ $? -ne 0 ]] && return_status=1 && break
+      # create renamed file and append tmxr_version line
+      printf "vers%c%s\n" $'\t' "$tmxr_version" > "${g_tmxr_directory_ng}/${_file_renamed}"
 
-    # add "${_file}" to completed queue array
-    migrated_file_path_list+=( "${g_tmxr_directory_ng}/${_file_renamed}" )
+      # append original session_name content to migrated file
+      local _line
+      while IFS=$'\n' read _line; do
+        [[ -z "${_line}" ]] && continue;
+        printf "%s\n" "${_line}" >> "${g_tmxr_directory_ng}/${_file_renamed}"
+        [[ $? -ne 0 ]] && return_status=1 && break
+      done <<< "$(\grep -E "^(pane|window)*\s${_session_name}" "${_file}")"
+      unset _line
+
+      # did last loop exit prematurely? we exit too!
+      [[ $return_status -ne 0 ]] && break
+
+      if [[ "$g_debug" -ne 0 ]]; then
+        printf "     -->: %s\n" "${_file_renamed}" >> "$g_tmxr_debug_file"
+      fi
+
+      # add "${_file}" to completed queue array
+      migrated_file_path_list+=( "${g_tmxr_directory_ng}/${_file_renamed}" )
+    done
+    unset _file_renamed _session_name
+
+    # did last loop exit prematurely? we exit too!
+    [[ $return_status -ne 0 ]] && break
 
     # copy or move original file to backupdir
     if [[ "$g_tmxr_directory_ng" != "$g_tmxr_directory" ]]; then
@@ -339,15 +412,13 @@ migrate_state_files() {
   fi
 
   # return array of migrated files
-  if [[ "$g_debug" -eq 0 ]]; then
-    printf "%s\n" "${migrated_file_path_list[@]}"
-  fi
+  printf "%s\n" "${migrated_file_path_list[@]}"
 
   return $return_status
 }
 
 relink_last_files() {
-  local state_file_pattern="$g_tmxr_directory_ng/tmxr_[0-9]*"'.txt'
+  local state_file_pattern="$g_tmxr_directory_ng/tmxr_[0-9]*_sstate"'*.txt'
   local state_file_path_list=()
   local state_file_path=""
   local buffer_file_pattern="$g_tmxr_directory_ng/tmxr_[0-9]*_buffer"'*.*'
@@ -356,6 +427,7 @@ relink_last_files() {
   local history_file_pattern="$g_tmxr_directory_ng/tmxr_[0-9]*_buffer"'*.*'
   local history_file_path_list=()
   local history_file_path=""
+  local session_name_list=()
   local paneid_list=()
   local file_path_list=()
   local defaultIFS="$IFS"
@@ -363,18 +435,39 @@ relink_last_files() {
   local return_status=0
   local stderr_status=0
 
-  # find most-recent state file and link to last
-  IFS=$'\n'
-  stderr_status=$(ls -1 $state_file_pattern 2>&1 1>/dev/null)
-  [[ $? -ne 0 ]] && [[ ! "${stderr_status}" =~ "No such file or directory" ]] && return 255
-  state_file_path_list=( $(ls -1 $state_file_pattern 2>/dev/null) )
-  state_file_path=$(echo "${state_file_path_list[*]}" | sort -r | head -1)
-  IFS="$defaultIFS"
+  # find all state files, and get a list of unique session name
+  if [[ "$return_status" -eq 0 ]]; then
+    IFS=$'\n'
+    stderr_status=$(ls -1 $state_file_pattern 2>&1 1>/dev/null)
+    [[ $? -ne 0 ]] && [[ ! "${stderr_status}" =~ "No such file or directory" ]] && return 255
+    state_file_path_list=( $(ls -1 $state_file_pattern 2>/dev/null) )
+    IFS="$defaultIFS"
+    session_name_list=( $(find_session_names_from_files "${state_file_path_list[*]}") )
+  fi
 
-  if [[ -n "$state_file_path" ]]; then
-    ln -fs "$(basename "$state_file_path")" "$g_tmxr_directory_ng/last"
-    # still ok?
-    [[ $? -ne 0 ]] && return_status=1
+  # iterate over sessionid_list and find the most-recent state file for each
+  if [[ "$return_status" -eq 0 ]]; then
+    local _session_name
+    local _state_file_pattern
+    local _state_file_path_list=()
+    local _state_file_path=""
+    for _session_name in "${session_name_list[@]}"; do
+      _state_file_pattern="$g_tmxr_directory_ng/tmxr_[0-9]*_sstate-${_session_name}"'.txt'
+      IFS=$'\n'
+      stderr_status=$(ls -1 ${_state_file_pattern} 2>&1 1>/dev/null)
+      [[ $? -ne 0 ]] && [[ ! "${stderr_status}" =~ "No such file or directory" ]] && return 255
+      _state_file_path_list=( $(ls -1 ${_state_file_pattern} 2>/dev/null) )
+      _state_file_path=$(echo "${_state_file_path_list[*]}" | sort -r | head -1)
+      IFS="$defaultIFS"
+      # link to last_sstate-SESSION_NAME
+      ln -fs "$(basename "${_state_file_path}")" "$g_tmxr_directory_ng/last_sstate-${_session_name}"
+      # still ok?
+      [[ $? -ne 0 ]] && return_status=1 && break
+    done
+    unset _state_file_path
+    unset _state_file_path_list
+    unset _state_file_pattern
+    unset _session_name
   fi
 
   # find all buffer files, and get a list of unique pane ids
@@ -455,6 +548,11 @@ main() {
     "g_tmxr_directory_ng_static" \
     "g_tmxr_buffer_extension_static" \
   )
+
+  if [[ "$g_debug" -ne 0 ]]; then
+    echo -n >> "$g_tmxr_debug_file"
+    [[ $? -ne 0 ]] && g_debug=0 # disable debug if we can't create file
+  fi
 
   echo "Running tmux-resurrect to tmux-resurrect-ng migration..."
 
@@ -593,10 +691,10 @@ main() {
     [[ $? -ne 0 ]] && status=6
   fi
 
-  if [[ "$g_debug" -eq 0 && $g_noise -gt 1 ]]; then
-    echo "Updated files..."
+  if [[ "$g_debug" -ne 0 && "$g_noise" -gt 1 ]]; then
+    echo "Updated files..." >> "$g_tmxr_debug_file"
     for file in "${migrated_file_path_list[@]}"; do
-      echo "$file"
+      echo "$file" >> "$g_tmxr_debug_file"
     done
   fi
 
@@ -650,6 +748,14 @@ main() {
     echo "You may want to remove that directory after you feel"
     echo "comfortable with tmux-resurrect-ng."
     echo
+  fi
+
+  if [[ "$g_debug" -ne 0 ]]; then
+    if [[ $status -ne 0 ]]; then
+      echo "Done. Migration failed." >> "$g_tmxr_debug_file"
+    else
+      echo "Done. Migration successful." >> "$g_tmxr_debug_file"
+    fi
   fi
 
   return $status

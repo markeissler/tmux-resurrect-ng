@@ -7,8 +7,6 @@
 default_resurrect_dir="$HOME/.tmux/resurrect-ng"
 resurrect_dir_option="@resurrect-dir"
 
-# TMUX_SUPPORTED_VERSION="1.9"
-
 ##
 # tmxr helpers
 ##
@@ -73,7 +71,24 @@ get_tmux_version() {
 }
 
 get_session_name() {
-  tmux display-message -p "#S"
+  local session_name="$TMXR_SESSION"
+  local return_status=0
+
+  if [[ -z "$session_name" ]]; then
+    session_name="$(tmux display-message -p "#S")"
+    return_status=1
+  fi
+
+  echo "$session_name"; return $return_status
+}
+
+set_session_name() {
+  local session_name="$1"
+
+  # must have a session_name!
+  [[ -z "$session_name" ]] && echo "" && return 1
+
+  TMXR_SESSION="$1"
 }
 
 get_pane_id() {
@@ -192,29 +207,55 @@ resurrect_file_stub() {
 }
 
 resurrect_file_path() {
+  local session_name="$1"
   local globstamp='[0-9]*'
   local timestamp="$(date +"%s")"
 
+  # must have a session_name!
+  [[ -z "$session_name" ]] && echo "" && return 1
+
   # globstamp instead of timestamp?
-  [[ -n "$1" && "$1" = true ]] && timestamp="$globstamp"
+  [[ -n "$2" && "$2" = true ]] && timestamp="$globstamp"
 
   # caller supplied timestamp?
-  [[ -n "$2" && "$1" = false ]] && timestamp="$2"
+  [[ -n "$3" && "$2" = false ]] && timestamp="$2"
 
-  echo "$(resurrect_dir)/$(resurrect_file_stub)${timestamp}.txt"
+  echo "$(resurrect_dir)/$(resurrect_file_stub)${timestamp}_sstate-${session_name}.txt"
 }
 
 last_resurrect_file() {
-  echo "$(resurrect_dir)/last"
+  local session_name="$1"
+
+  # must have a session_name!
+  [[ -z "$session_name" ]] && echo "" && return 1
+
+  echo "$(resurrect_dir)/last_sstate-${session_name}"
 }
 
 restore_lock_file_path() {
-  local session_id="$1"
+  local session_name="$1"
 
-  # must have a session_id!
-  [[ -z "$session_id" ]] && echo "" && return 1
+  # must have a session_name!
+  [[ -z "$session_name" ]] && echo "" && return 1
 
-  echo "$(resurrect_dir)/.restore-${session_id}"
+  echo "$(resurrect_dir)/.restore-${session_name}"
+}
+
+status_runner_file_path() {
+  local session_name="$1"
+  local globstamp='[0-9]*'
+  local timestamp="$(date +"%s")"
+
+  # must have a session_name!
+  [[ -z "$session_name" ]] && echo "" && return 1
+
+  # globstamp instead of timestamp?
+  [[ -n "$2" && "$2" = true ]] && timestamp="$globstamp"
+
+  # caller supplied timestamp?
+  [[ -n "$3" && "$2" = false ]] && timestamp="$3"
+
+  echo "$(resurrect_dir)/.srunner-${session_name}_${timestamp}.run"
 }
 
 pane_history_file_path() {
@@ -273,7 +314,7 @@ pane_actions_file_path() {
   local pane_id="$1"
   local pane_tty="${2//\//@}"
 
-  # must have a pane_id!
+  # must have a pane_id AND pane_tty!
   [[ -z "$pane_id" || -z "$pane_tty" ]] && echo "" && return 1
 
   echo "$(resurrect_dir)/.actions-${pane_id}:${pane_tty}"
@@ -283,7 +324,7 @@ pane_trigger_file_path() {
   local pane_id="$1"
   local pane_tty="${2//\//@}"
 
-  # must have a pane_id!
+  # must have a pane_id AND pane_tty!
   [[ -z "$pane_id" || -z "$pane_tty" ]] && echo "" && return 1
 
   echo "$(resurrect_dir)/.trigger-${pane_id}:${pane_tty}"
@@ -464,12 +505,14 @@ digits_from_string() {
 }
 
 remove_first_char() {
-  echo "$1" | cut -c2-
+  echo "${1:1}"
 }
 
 restore_zoomed_windows() {
-  awk 'BEGIN { FS="\t"; OFS="\t" } /^pane/ && $6 ~ /Z/ && $9 == 1 { print $2, $3; }' $(last_resurrect_file) |
-    while IFS=$'\t' read session_name window_number; do
-      tmux resize-pane -t "${session_name}:${window_number}" -Z
-    done
+  local session_name"${1:-$(get_session_name)}" # defaults to client session
+  local last_state_file="$(last_resurrect_file "$session_name")"
+
+  while IFS=$'\t' read _session_name _window_number; do
+    tmux resize-pane -t "${_session_name}:${_window_number}" -Z
+  done <<< "$(awk 'BEGIN { FS="\t"; OFS="\t" } /^pane/ && $6 ~ /Z/ && $9 == 1 { print $2, $3; }' "$last_state_file")"
 }

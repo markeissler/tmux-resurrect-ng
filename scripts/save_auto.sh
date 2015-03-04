@@ -5,18 +5,20 @@ CURRENT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 source "$CURRENT_DIR/variables.sh"
 source "$CURRENT_DIR/helpers.sh"
 source "$CURRENT_DIR/file_helpers.sh"
+source "$CURRENT_DIR/session_helpers.sh"
 source "$CURRENT_DIR/pane_helpers.sh"
 source "$CURRENT_DIR/save_helpers.sh"
 
 save_all_states() {
-  local resurrect_file_path="$(resurrect_file_path)"
+  local session_name="$1"
+  local resurrect_file_path="$(resurrect_file_path "$session_name")"
+
   mkdir -p "$(resurrect_dir)"
   dump_version >  "$resurrect_file_path"
-  dump_panes   >> "$resurrect_file_path"
-  dump_windows >> "$resurrect_file_path"
-  dump_state   >> "$resurrect_file_path"
-  ln -fs "$(basename "$resurrect_file_path")" "$(last_resurrect_file)"
-  restore_zoomed_windows
+  dump_panes "$session_name"  >> "$resurrect_file_path"
+  dump_windows "$session_name" >> "$resurrect_file_path"
+  ln -fs "$(basename "$resurrect_file_path")" "$(last_resurrect_file "$session_name")"
+  restore_zoomed_windows "$session_name"
 }
 
 update_pane_trigger() {
@@ -115,19 +117,22 @@ update_pane_trigger() {
 }
 
 update_pane_triggers() {
+  local session_name="$1"
   local return_status=0
 
-  while IFS=$'\t' read line_type session_name window_number window_name window_active window_flags pane_index dir pane_active pane_command full_command; do
-    update_pane_trigger "$session_name:$window_number.$pane_index" "$pane_command" "$full_command"
+  while IFS=$'\t' read _line_type _session_name _window_number _window_name _window_active _window_flags _pane_index _dir _pane_active _pane_command _full_command; do
+    local __pane_id="${_session_name}:${_window_number}.${_pane_index}"
+    update_pane_trigger "${__pane_id}" "${_pane_command}" "${_full_command}"
     local rslt=$?
     [[ $rslt -gt $return_status ]] && return_status=$rslt
-  done < <(dump_panes)
+  done <<< "$(session_panes "$session_name")"
 
   return $return_status
 }
 
 update_state() {
-  local state_file_pattern="$(resurrect_dir)/$(resurrect_file_stub)"'*.txt'
+  local session_name="$1"
+  local state_file_pattern="$(resurrect_file_path "$session_name" "true")"
   local state_file_path_list=()
   local state_file_path=""
   local timeinsec=$(date +%s)
@@ -163,23 +168,29 @@ update_state() {
 
   # save updated state if no file exists or file is stale
   if [[ $(enable_debug_mode_on; echo $?) -eq 0 ]]; then
-    local session_name="$(get_session_name)"
     local debug_file_path="/tmp/tmxr_${session_name}.txt"
-    echo "   time_now: $timeinsec" > "$debug_file_path"
+    echo " state file: $state_file_path" > "$debug_file_path"
+    echo "   time_now: $timeinsec" >> "$debug_file_path"
     echo "state_mtime: $state_file_mtime" >> "$debug_file_path"
     echo "  state_age: $(( timeinsec - state_file_mtime ))" >> "$debug_file_path"
     echo "update_code: $return_status" >> "$debug_file_path"
   fi
-  [[ $return_status -gt 0 ]] && save_all_states
+  [[ $return_status -gt 0 ]] && save_all_states "$session_name"
 
   return $return_status
 }
 
 main() {
   if [[ $(sanity_ok; echo $?) -eq 0 ]]; then
-    local session_name="$(get_session_name)"
+    local session_name="$1"
     local state_rslt trigger_rslt purge_rslt
     local status_index=0
+
+    # we must have a session name!
+    [[ -z "$session_name" ]] && return 255
+
+    # set global session variable
+    set_session_name "$session_name"
 
     #
     # status index
@@ -200,10 +211,10 @@ main() {
       [[ -f "$(restore_lock_file_path "$session_name")" ]] && return 253
 
       # save all states
-      update_state; state_rslt=$?
+      update_state "$session_name"; state_rslt=$?
 
       # save history/buffer triggers
-      update_pane_triggers; trigger_rslt=$?
+      update_pane_triggers "$session_name"; trigger_rslt=$?
 
       # return auto save status code
       [[ $state_rslt -eq 0 ]] && (( status_index++ ))
@@ -212,7 +223,7 @@ main() {
 
     if [[ $(enable_file_purge_on; echo $?) -eq 0 && $status_index -eq 3 ]]; then
       # purge old state/history/buffer files
-      purge_all_files; purge_rslt=$?
+      purge_all_files "$session_name"; purge_rslt=$?
     fi
   else
     # tmux version unsupported!

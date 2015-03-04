@@ -9,26 +9,29 @@ source "$CURRENT_DIR/save_helpers.sh"
 source "$CURRENT_DIR/spinner_helpers.sh"
 
 save_all() {
-  local resurrect_file_path="$(resurrect_file_path)"
+  local session_name="$1"
+  local resurrect_file_path="$(resurrect_file_path "$session_name")"
+
   mkdir -p "$(resurrect_dir)"
-  dump_version >  "$resurrect_file_path"
-  dump_panes   >> "$resurrect_file_path"
-  dump_windows >> "$resurrect_file_path"
-  dump_state   >> "$resurrect_file_path"
-  ln -fs "$(basename "$resurrect_file_path")" "$(last_resurrect_file)"
+  dump_version > "$resurrect_file_path"
+  dump_panes "$session_name" >> "$resurrect_file_path"
+  dump_windows "$session_name" >> "$resurrect_file_path"
+  ln -fs "$(basename "$resurrect_file_path")" "$(last_resurrect_file "$session_name")"
   if enable_pane_history_on; then
-    dump_pane_histories
+    dump_pane_histories "$session_name"
   fi
   if enable_pane_buffers_on; then
-    dump_pane_buffers
+    dump_pane_buffers "$session_name"
   fi
-  restore_zoomed_windows
+  restore_zoomed_windows "$session_name"
 }
 
 main() {
   if [[ $(sanity_ok; echo $?) -eq 0 ]]; then
+    local session_name="$(get_session_name)"
+
     start_spinner "Saving..."
-    save_all
+    save_all "$session_name"
     stop_spinner
     display_message "Environment saved!"
   fi
