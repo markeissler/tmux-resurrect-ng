@@ -6,10 +6,23 @@
 
 # variables preceded with "dep_" are deprecrated versions of the same var.
 
+# global current session
+TMXR_SESSION=""
+
 #
-tmxr_version="0.9.0"
+tmxr_version="1.0.0"
+
+# supported tmxr versions
+#
+# Used for auto-migrating older tmxr file formats to this version.
+#
+tmxr_version_list=(
+  "0.9"
+)
+
+# supported tmux versions
 tmux_version_list=(
-  "1.9"
+  "1.9a1"
 )
 
 ##
@@ -57,11 +70,12 @@ restore_process_strategy_option="@resurrect-strategy-"
 
 inline_strategy_token="->"
 
-save_command_strategy_option="@resurrect-save-command-strategy"
-default_save_command_strategy="ps"
+pane_full_command_strategy_option="@resurrect-pane-full-command-strategy"
+default_pane_full_command_strategy="ps_pane_full_command"
+dep_pane_full_command_strategy_option="@resurrect-save-command-strategy"
 
-ps_session_etime_command_strategy_option="@resurrect-ps-session-etime-command-strategy"
-default_ps_session_etime_command_strategy="ps_session_etime"
+session_etime_command_strategy_option="@resurrect-session-etime-command-strategy"
+default_session_etime_command_strategy="ps_session_etime"
 
 stat_mtime_command_strategy_option="@resurrect-stat-mtime-command-strategy"
 default_stat_mtime_command_strategy="stat_mtime"

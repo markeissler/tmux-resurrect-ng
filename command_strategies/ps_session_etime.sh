@@ -77,7 +77,7 @@ full_command() {
   local return_status=0
 
   proc_string="$(ps "$(ps_command_flags)" "ppid,etime,command" \
-    | grep -E "[t]mux\s([[:alnum:][:punct:]]+)\s\-s\s$SESSION_NAME\s.*$")"
+    | grep -E "[t]mux\s(new(\-session)?)\s\-s\s$SESSION_NAME(\s\-d)?$")"
 
   if [[ $? -ne 0 ]]; then
     return_status=1

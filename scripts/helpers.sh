@@ -4,10 +4,8 @@
 #   variables.sh
 #
 
-default_resurrect_dir="$HOME/.tmux/resurrect"
+default_resurrect_dir="$HOME/.tmux/resurrect-ng"
 resurrect_dir_option="@resurrect-dir"
-
-# TMUX_SUPPORTED_VERSION="1.9"
 
 ##
 # tmxr helpers
@@ -16,6 +14,15 @@ resurrect_dir_option="@resurrect-dir"
 # this version of tmux-resurrect-ng (tmxr)
 tmxr_version() {
   echo "$tmxr_version"
+}
+
+# versions of tmux-resurrect-ng that this version supports for auto-migrating
+# older tmxr file formats to this version.
+#
+# Returns a space delimited string of records.
+#
+tmxr_versions_list() {
+  printf "%s" "${tmxr_version_list[*]}"
 }
 
 # versions of tmux that tmux-resurrect-ng (tmxr) supports
@@ -64,7 +71,24 @@ get_tmux_version() {
 }
 
 get_session_name() {
-  tmux display-message -p "#S"
+  local session_name="$TMXR_SESSION"
+  local return_status=0
+
+  if [[ -z "$session_name" ]]; then
+    session_name="$(tmux display-message -p "#S")"
+    return_status=1
+  fi
+
+  echo "$session_name"; return $return_status
+}
+
+set_session_name() {
+  local session_name="$1"
+
+  # must have a session_name!
+  [[ -z "$session_name" ]] && echo "" && return 1
+
+  TMXR_SESSION="$1"
 }
 
 get_pane_id() {
@@ -94,14 +118,15 @@ get_status_interval() {
 # Ensures a message is displayed for 5 seconds in tmux prompt.
 # Does not override the 'display-time' tmux option.
 display_message() {
-  local message="$1"
+  local message="Resurrect: $1"
+  local msgicon=">"
+  local display_duration=5000 # milliseconds
 
-  # display_duration defaults to 5 seconds, if not passed as an argument
-  if [ "$#" -eq 2 ]; then
-    local display_duration="$2"
-  else
-    local display_duration="5000"
-  fi
+  # display_duration
+  [[ -n "$2" ]] && display_duration="$2"
+
+  # message icon (precedes output of message)
+  [[ -n "$3" ]] && msgicon="$3"
 
   # saves user-set 'display-time' option
   local saved_display_time=$(get_tmux_option "display-time" "750")
@@ -110,7 +135,7 @@ display_message() {
   tmux set-option -gq display-time "$display_duration"
 
   # displays message
-  tmux display-message "$message"
+  tmux display-message " $msgicon $message"
 
   # restores original 'display-time' value
   tmux set-option -gq display-time "$saved_display_time"
@@ -182,20 +207,55 @@ resurrect_file_stub() {
 }
 
 resurrect_file_path() {
+  local session_name="$1"
   local globstamp='[0-9]*'
   local timestamp="$(date +"%s")"
 
+  # must have a session_name!
+  [[ -z "$session_name" ]] && echo "" && return 1
+
   # globstamp instead of timestamp?
-  [[ -n "$1" && "$1" = true ]] && timestamp="$globstamp"
+  [[ -n "$2" && "$2" = true ]] && timestamp="$globstamp"
 
   # caller supplied timestamp?
-  [[ -n "$2" && "$1" = false ]] && timestamp="$2"
+  [[ -n "$3" && "$2" = false ]] && timestamp="$2"
 
-  echo "$(resurrect_dir)/$(resurrect_file_stub)${timestamp}.txt"
+  echo "$(resurrect_dir)/$(resurrect_file_stub)${timestamp}_sstate-${session_name}.txt"
 }
 
 last_resurrect_file() {
-  echo "$(resurrect_dir)/last"
+  local session_name="$1"
+
+  # must have a session_name!
+  [[ -z "$session_name" ]] && echo "" && return 1
+
+  echo "$(resurrect_dir)/last_sstate-${session_name}"
+}
+
+restore_lock_file_path() {
+  local session_name="$1"
+
+  # must have a session_name!
+  [[ -z "$session_name" ]] && echo "" && return 1
+
+  echo "$(resurrect_dir)/.restore-${session_name}"
+}
+
+status_runner_file_path() {
+  local session_name="$1"
+  local globstamp='[0-9]*'
+  local timestamp="$(date +"%s")"
+
+  # must have a session_name!
+  [[ -z "$session_name" ]] && echo "" && return 1
+
+  # globstamp instead of timestamp?
+  [[ -n "$2" && "$2" = true ]] && timestamp="$globstamp"
+
+  # caller supplied timestamp?
+  [[ -n "$3" && "$2" = false ]] && timestamp="$3"
+
+  echo "$(resurrect_dir)/.srunner-${session_name}_${timestamp}.run"
 }
 
 pane_history_file_path() {
@@ -250,11 +310,21 @@ last_pane_buffer_file() {
   echo "$(resurrect_dir)/last_buffer-${pane_id}"
 }
 
-pane_trigger_file() {
+pane_actions_file_path() {
   local pane_id="$1"
   local pane_tty="${2//\//@}"
 
-  # must have a pane_id!
+  # must have a pane_id AND pane_tty!
+  [[ -z "$pane_id" || -z "$pane_tty" ]] && echo "" && return 1
+
+  echo "$(resurrect_dir)/.actions-${pane_id}:${pane_tty}"
+}
+
+pane_trigger_file_path() {
+  local pane_id="$1"
+  local pane_tty="${2//\//@}"
+
+  # must have a pane_id AND pane_tty!
   [[ -z "$pane_id" || -z "$pane_tty" ]] && echo "" && return 1
 
   echo "$(resurrect_dir)/.trigger-${pane_id}:${pane_tty}"
@@ -295,14 +365,16 @@ sanity_ok() {
   # 255 - fatal (reserved)
   #
 
+  # check tmux version
   if [[ $(supported_tmux_version_ok; echo $?) -eq 1 ]]; then
-    (( status_index++ ))
+    status_index=1
   fi
 
+  # create resurrect_dir if it doesn't exist
   if [[ $status_index -eq 0 && ! -d "$resurrect_dir" ]]; then
     # tmxr directory, try to recover by creating one
     mkdir -p "$resurrect_dir"
-    [[ $? -ne 0 ]] && (( status_index++ ))
+    [[ $? -ne 0 ]] && status_index=2
   fi
 
   return $status_index
@@ -312,7 +384,7 @@ supported_tmux_version_ok() {
   "$CURRENT_DIR/check_tmux_version.sh" "$(tmux_versions_list)"
 }
 
-resurrect_file_version_ok() {
+resurrect_file_version() {
   local resurrect_file_path="$1"
   local resurrect_file_vers=""
   local return_status=0
@@ -320,17 +392,36 @@ resurrect_file_version_ok() {
 
   [[ ! -f "$resurrect_file_path" ]] && return 255
 
-  resurrect_file_vers=<(awk 'BEGIN { FS="\t"; OFS="\t" } /^vers/ { print $2; }' "$resurrect_file_path")
+  resurrect_file_vers="$({ awk 'BEGIN { FS="\t"; OFS="\t" } /^vers/ { print $2; }' "$resurrect_file_path"; } 2> /dev/null)"
+  [[ $? -ne 0 ]] && echo "" && return 1
 
-  return_string="$(version_in_versionlist "$resurrect_file_vers" "$(tmux_versions_list)")"
+  return_string="${resurrect_file_vers:-unknown}"
+
+  echo -n "$return_string"; return $return_status
+}
+
+resurrect_file_version_ok() {
+  local resurrect_file_path="$1"
+  local resurrect_file_vers=""
+  local resurrect_file_places=2 # only compare major.minor from version
+  local return_status=0
+  local return_string=""
+
+  [[ ! -f "$resurrect_file_path" ]] && return 255
+
+  resurrect_file_vers="$(resurrect_file_version "$resurrect_file_path")"
+  [[ $? -ne 0 ]] && echo "" && return 1
+
+  return_string="$(version_in_versionlist "$resurrect_file_vers" "$(tmxr_versions_list)" "$resurrect_file_places")"
   return_status=$?
 
-  echo "$return_string"; return $return_status
+  echo -n "$return_string"; return $return_status
 }
 
 version_in_versionlist() {
   local target_version="$1"
   local target_version_int=0
+  local target_places=3
   local version_list=()
   local version_list_match="" # matching version found
   local version_list_sorted=()
@@ -343,11 +434,14 @@ version_in_versionlist() {
 
   IFS=$' ' version_list=( $2 ) IFS="$defaultIFS"
 
+  # match all three places (major.minor.bugfix) by default
+  [[ -n "$3" ]] && target_places="$3"
+
   # we need a target version and version list!
   [[ -z "$target_version" || "${#version_list[@]}" -eq 0 ]] && exit 255
 
-  target_version_int="$(digits_from_string "$target_version")"
-  version_list_sorted=( $(printf "%s" "${version_list[*]}" | sort -r | uniq) )
+  target_version_int="$(digits_from_string "$target_version" "$target_places")"
+  version_list_sorted=( $(printf "%s\n" "${version_list[@]}" | sort -r | uniq) )
 
   # We iterate over the version list, converting version strings to version ints
   # (the version number stripped of alpha chars and punctuation), and comparing
@@ -356,12 +450,12 @@ version_in_versionlist() {
   # our caller.
   local _count=0
   for version in "${version_list_sorted[@]}"; do
-    local version_int="$(digits_from_string "$version")"
+    local version_int="$(digits_from_string "$version" "$target_places")"
     [[ -z "$version_int" ]] && break
 
     [[ $_count -eq 0 ]] && version_newest="$version"
     version_oldest="$version"
-    if [[ $version_int -eq $target_version_int ]]; then
+    if [[ "$version_int" = "$target_version_int" ]]; then
       version_list_match="$version"
       break
     fi
@@ -369,26 +463,19 @@ version_in_versionlist() {
   done
 
   # return_string format:
-  #   [oldest, newest], [versions]
+  #   [target], [oldest, newest], [versions]
   # e.g. not matching
-  #   [1.9a, 3.2], [1.9a, 2.0, 2.1, 3.0, 3.1, 3.2]
+  #   [1.7], [1.9a, 3.2], [1.9a, 2.0, 2.1, 3.0, 3.1, 3.2]
   #
   if [[ -z "$version_list_match" ]]; then
     return_status=1
   fi
   local version_list_string="${version_list_sorted[@]}"
-  return_string+="[$version_oldest, $version_newest]"
+  return_string+="[$target_version]"
+  return_string+=", [$version_oldest, $version_newest]"
   return_string+=", [${version_list_string// /, }]"
 
   echo "$return_string"; return $return_status
-}
-
-purge_trigger_files() {
-  local trigger_file_pattern='.trigger-*'
-
-  rm -f "$(resurrect_dir)/"$trigger_file_pattern > /dev/null 2>&1
-
-  return $?
 }
 
 # this is used to get "clean" integer version number. Examples:
@@ -396,17 +483,36 @@ purge_trigger_files() {
 # `1.9a`     => `19`
 digits_from_string() {
   local string="$1"
-  local only_digits="$(echo "$string" | tr -dC '[:digit:]')"
+  local string_array=()
+  local places=3
+  local places_string=""
+  local only_digits=""
+  local defaultIFS="$IFS"
+  local IFS="$defaultIFS"
+
+  [[ -n "$2" ]] && places="$2"
+
+  # trim extraneous places from string
+  IFS='.' string_array=( $string ) IFS="$defaultIFS"
+
+  for (( i=0; $i<${#string_array[@]} && $i<$places; i++  )); do
+    places_string+="${string_array[i]}"
+  done
+
+  only_digits="$(echo "$places_string" | tr -dC '[:digit:]')"
+
   echo "$only_digits"
 }
 
 remove_first_char() {
-  echo "$1" | cut -c2-
+  echo "${1:1}"
 }
 
 restore_zoomed_windows() {
-  awk 'BEGIN { FS="\t"; OFS="\t" } /^pane/ && $6 ~ /Z/ && $9 == 1 { print $2, $3; }' $(last_resurrect_file) |
-    while IFS=$'\t' read session_name window_number; do
-      tmux resize-pane -t "${session_name}:${window_number}" -Z
-    done
+  local session_name"${1:-$(get_session_name)}" # defaults to client session
+  local last_state_file="$(last_resurrect_file "$session_name")"
+
+  while IFS=$'\t' read _session_name _window_number; do
+    tmux resize-pane -t "${_session_name}:${_window_number}" -Z
+  done <<< "$(awk 'BEGIN { FS="\t"; OFS="\t" } /^pane/ && $6 ~ /Z/ && $9 == 1 { print $2, $3; }' "$last_state_file")"
 }
