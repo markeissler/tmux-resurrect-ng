@@ -10,7 +10,7 @@
 TMXR_SESSION=""
 
 #
-tmxr_version="0.9.0"
+tmxr_version="1.0.0"
 
 # supported tmxr versions
 #
@@ -22,7 +22,6 @@ tmxr_version_list=(
 
 # supported tmux versions
 tmux_version_list=(
-  "1.9"
   "1.9a1"
 )
 
