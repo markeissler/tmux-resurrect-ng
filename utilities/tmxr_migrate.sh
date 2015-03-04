@@ -33,14 +33,12 @@ source "$CURRENT_DIR/../scripts/file_helpers.sh"
 # The raw default is "$HOME/.tmux/resurrect".
 #
 #g_tmxr_directory_static="$HOME/.tmux/resurrect"
-g_tmxr_directory_static="/tmp/TEST/resurrect"
 
 # override the runtime resurrect-ng directory setting
 #
 # The raw default is "$HOME/.tmux/resurrect-ng".
 #
 #g_tmxr_directory_ng_static="$HOME/.tmux/resurrect-ng"
-g_tmxr_directory_ng_static="/tmp/TEST/resurrect-ng"
 
 # override the runtime history file name extension
 #
@@ -49,7 +47,6 @@ g_tmxr_directory_ng_static="/tmp/TEST/resurrect-ng"
 # .ans (ansi enabled)
 # .txt (ansi disabled)
 #g_tmxr_buffer_extension_static=".ans"
-g_tmxr_buffer_extension_static=".ans"
 
 ##############################################################################
 ###### NO SERVICABLE PARTS BELOW
