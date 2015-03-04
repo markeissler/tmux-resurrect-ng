@@ -74,7 +74,6 @@ Permissions should already be setup adequately, but you can run the following co
  $HOME/.tmux/plugins/tmux-resurrect-ng/scripts/status_runner.sh \
  $HOME/.tmux/plugins/tmux-resurrect-ng/scripts/tmux_spinner.sh \
  $HOME/.tmux/plugins/tmux-resurrect-ng/command_strategies/*.sh \
- $HOME/.tmux/plugins/tmux-resurrect-ng/save_command_strategies/*.sh \
  $HOME/.tmux/plugins/tmux-resurrect-ng/strategies/*.sh
 ```
 
