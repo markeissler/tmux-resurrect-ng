@@ -13,14 +13,14 @@ SESSION_PURGE_SRUNNERS_ALL=1
 SESSION_PURGE_SRUNNERS_DEAD=2
 
 session_ctime() {
-  local session_name"${1:-$(get_session_name)}" # defaults to pane session
+  local session_name="${1:-$(get_session_name)}" # defaults to pane session
 
   # display created time (as an integer) for session_name
   tmux display-message -t "$session_name" -p "#{session_created}"
 }
 
 session_etime() {
-  local session_name"${1:-$(get_session_name)}" # defaults to pane session
+  local session_name="${1:-$(get_session_name)}" # defaults to pane session
   local session_ctime=$(session_ctime "$session_name")
   local session_etime=0
   local timeinsec=$(date +%s)

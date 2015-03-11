@@ -509,7 +509,7 @@ remove_first_char() {
 }
 
 restore_zoomed_windows() {
-  local session_name"${1:-$(get_session_name)}" # defaults to client session
+  local session_name="${1:-$(get_session_name)}" # defaults to client session
   local last_state_file="$(last_resurrect_file "$session_name")"
 
   while IFS=$'\t' read _session_name _window_number; do
