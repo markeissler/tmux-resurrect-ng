@@ -190,7 +190,7 @@ session_purge_actions() {
 
 # purge all actions files for session
 session_purge_actions_all() {
-  local session_name"$1" # optional
+  local session_name="$1" # optional
 
   session_purge_actions "$SESSION_PURGE_ACTIONS_ALL" "$session_name"
 
@@ -199,7 +199,7 @@ session_purge_actions_all() {
 
 # purge actions files for panes that no longer exist in session
 session_purge_actions_dead() {
-  local session_name"$1" # optional
+  local session_name="$1" # optional
 
   session_purge_actions "$SESSION_PURGE_ACTIONS_DEAD" "$session_name"
 
@@ -272,7 +272,7 @@ session_purge_triggers() {
 
 # purge all trigger files for session
 session_purge_triggers_all() {
-  local session_name"$1" # optional
+  local session_name="$1" # optional
 
   session_purge_triggers "$SESSION_PURGE_TRIGGERS_ALL" "$session_name"
 
@@ -281,7 +281,7 @@ session_purge_triggers_all() {
 
 # purge trigger files for panes that no longer exist in session
 session_purge_triggers_dead() {
-  local session_name"$1" # optional
+  local session_name="$1" # optional
 
   session_purge_triggers "$SESSION_PURGE_TRIGGERS_DEAD" "$session_name"
 
@@ -344,7 +344,7 @@ session_purge_srunners() {
 }
 
 session_purge_srunners_all() {
-  local session_name"$1" # optional
+  local session_name="$1" # optional
 
   session_purge_srunners "$SESSION_PURGE_SRUNNERS_ALL" "$session_name"
 
@@ -352,7 +352,7 @@ session_purge_srunners_all() {
 }
 
 session_purge_srunners_dead() {
-  local session_name"$1" # optional
+  local session_name="$1" # optional
 
   session_purge_srunners "$SESSION_PURGE_SRUNNERS_DEAD" "$session_name"
 
