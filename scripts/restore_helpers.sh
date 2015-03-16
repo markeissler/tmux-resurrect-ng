@@ -95,7 +95,7 @@ restore_all_panes() {
     if is_line_type "pane" "$line"; then
       restore_pane_for_state "$line"
     fi
-  done < $(last_resurrect_file "$session_name")
+  done < "$(last_resurrect_file "$session_name")"
 }
 
 restore_pane_history() {
@@ -193,7 +193,7 @@ restore_pane_layout_for_each_window() {
 }
 
 restore_active_pane_for_each_window() {
-  local session_name"$1"
+  local session_name="$1"
   local last_state_file="$(last_resurrect_file "$session_name")"
 
   # must have a session_name!
@@ -206,7 +206,7 @@ restore_active_pane_for_each_window() {
 }
 
 restore_active_and_alternate_windows() {
-  local session_name"$1"
+  local session_name="$1"
   local last_state_file="$(last_resurrect_file "$session_name")"
 
   # must have a session_name!
