@@ -14,7 +14,9 @@ source "$CURRENT_DIR/save_helpers.sh"
 # PROMPT_COMMAND="source ~/dev/tmux-resurrect/scripts/prompt_runner.sh; tmxr_runner"
 
 tmxr_runner() {
-  if [[ -n "$TMUX" && $(sanity_ok; echo $?) -eq 0 ]]; then
+  local tmxr_runner_flag=true
+
+  if [[ -n "$TMUX" && $(sanity_ok "$tmxr_runner_flag"; echo $?) -eq 0 ]]; then
     local session_name="$(get_session_name)"
     local pane_id="$(get_pane_id)"
     local pane_tty="$(get_pane_tty "$pane_id")"

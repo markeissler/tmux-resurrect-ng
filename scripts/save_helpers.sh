@@ -316,7 +316,7 @@ save_pane_history() {
         pane_shell="bash"
       fi
       ;;
-    "tmux" )
+    "tmux" | "tmux-"* )
       if [[ "$tmxr_dump_flag" = true && "$full_command" = ":-bash" ]]; then
         pane_shell="bash"
       fi
@@ -394,7 +394,7 @@ save_pane_buffer() {
         pane_shell="bash"
       fi
       ;;
-    "tmux" )
+    "tmux" | "tmux-"* )
       if [[ "$tmxr_dump_flag" = true && "$full_command" = ":-bash" ]]; then
         pane_shell="bash"
       fi

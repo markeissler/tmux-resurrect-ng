@@ -3,7 +3,7 @@ Automated save and restore of `tmux` session window and pane geometry (layout an
 
 >**tmux-resurrect-ng** is currently only compatible with the `bash` shell. If your default shell is not `bash` (e.g. zsh, ksh, csh) then this plugin is not for you; you should consider the original [tmux-resurrect](https://github.com/tmux-plugins/tmux-resurrect) project instead.
 
-As of v1.0.0, **tmux-resurrect-ng** continues to support manual trigger of save and restore but that functionality may be removed in the future as the focus of this project is seamless automation.
+As of v1.0.1, **tmux-resurrect-ng** continues to support manual trigger of save and restore but that functionality may be removed in the future as the focus of this project is seamless automation.
 
 ##Features
 
@@ -40,18 +40,44 @@ Where [tmux-resurrect](https://github.com/tmux-plugins/tmux-resurrect) has been 
 What's the difference between the pane buffer and the command line history? Lots! The command line history is simply a log of all previous commands you've typed in. To access the command line history you need to either run the `history` command or incrementally scroll through the history (usually, using the up and down arrows on your keyboard). The pane buffer is the *visual* content of the terminal window. **tmux-resurrect-ng** preserves all ansi color codes when saving pane buffers.
 
 ## Tmux 1.9a1 (REQUIRED)
-**tmux-resurrect-ng** is currently dependent upon a patched version of `tmux` (1.9a1). The patch will be submitted to the official `tmux` project, but it's unknown if/when this patch will be accepted. In the meantime, patched source can be retrieved from my `tmux` fork:
+**tmux-resurrect-ng** is currently dependent upon a patched version of `tmux` (1.9a1). The patch will be submitted to the official `tmux` project, but it's unknown if/when this patch will be accepted. In the meantime, there are two methods for installation of `tmux-1.9a1`:
+
+* On OSX, install with homebrew via the _homebrew-tmux-19a1 Tap_
+* Clone the source from my fork, and build and install manually
+
+### Install Tmux 1.9a1 with homebrew on OSX
+This is, by far, the most convenient method of installation on OSX. Full instructions here:
+
+[Tmux 1.9a1 Homebrew Tap](https://github.com/markeissler/homebrew-tmux-19a1)
+
+#### Summarized homebrew instructions
+
+```
+>brew tap markeissler/tmux-19a1
+>brew unlink tmux  [NOTE: Only necessary if you have tmux installed already!]
+>brew install tmux-19a1
+```
+
+### Install with a manual build
+On platforms other than OSX, building from patched source is your only other alternative at this point. Full instructions are located in the _README_ file **on the branch indicated**:
 
 [tmux 1.9a1 - support for nested format specifiers](https://github.com/markeissler/tmux/tree/me/statusline-shellcmd-var-substitution)
 
-Build instructions can be found in the README file at the above repo. Once you've successfully built the patched `tmux` binary, simply copy it to a path location that takes precedence over the already installed version of `tmux` or remove the installed version and copy the new build into place.
+* _branch: me/statusline-shellcmd-var-substitution_
+* _tag: 1.9a1_
 
-On OSX, another installation option is offered via the [homebrew](http://brew.sh) package manager. To install via home-brew, simply execute the following in a working directory:
+#### Summarized build instructions
 
-```sh
->mkdir $HOME/tmuxbuild
->TODO
 ```
+>cd YOUR_BUILD_DIRECTORY
+>git clone https://github.com/markeissler/tmux.git
+>cd tmux
+>git checkout -b 1.9a1 tags/1.9a1
+>sh ./autogen.sh
+>./configure && make && make install
+```
+
+**NOTE:** If you have already installed a different version of `tmux` via homebrew, you will need to first uninstall it or at least specificy an installation prefix for your build. Another alternative is to skip the `make install` and simply copy the `tmux` binary into a directory located in your path, such as `$HOME/bin`.
 
 ## Installation
 The **tmux-resurrect-ng** plugin can be installed manually or automatically via the [Tmux Plugin Manager](https://github.com/tmux-plugins/tpm). Although some steps are common to both install processes they will be repeated for clarity.
@@ -68,7 +94,7 @@ Adding **tmux-resurrect-ng** manually is super easy and entails the following st
 #### Clone the repo
 The appropriate place to install tmux plugins is within your `.tmux` directory under plugins:
 
-```sh
+```
 >mkdir -p $HOME/.tmux/plugins
 >git clone https://github.com/markeissler/tmux-resurrect-ng.git $HOME/.tmux/plugins/tmux-resurrect-ng
 ```
@@ -76,26 +102,26 @@ The appropriate place to install tmux plugins is within your `.tmux` directory u
 #### Update your .tmux.conf file
 The automation offered by **tmux-resurrect-ng** is triggered by the `tmux` status bar and the `bash` prompt. Edit your .tmux.conf file by adding the following snippet to the **end** of your status-right configuration:
 
-```sh
+```
 [#($HOME/.tmux/plugins/tmux-resurrect-ng/scripts/status_runner.sh #S)]
 ```
 
 **NOTE: That trailing #S is critical to this installation and is only supported by `tmux` 1.9a1 (see above).**
 
 A complete example appears below:
-```sh
+```
 set -g status-right "#(hostname -s | cut -c 1-23) #[fg=cyan][#(uptime | rev | cut -d":" -f1 | rev | sed s/,//g) ]#[default][#($HOME/.tmux/plugins/tmux-resurrect-ng/scripts/status_runner.sh #S)]"
 ```
 
 It is recommended to also limit the width of the status-right section:
-```sh
+```
 set -g status-right-length 40
 ```
 
 To configure and load **tmux-resurrect-ng** add the following snippet to the **end** of your `.tmux.conf` file:
 
 
-```sh
+```
 # enable tmux-resurrect-ng pane buffers
 set -g @resurrect-enable-pane-buffers 'on'
 
@@ -109,7 +135,7 @@ run-shell "$HOME/.tmux/plugins/tmux-resurrect-ng/resurrect-ng.tmux"
 #### Update your .bash_profile file to enable prompt integration
 The following snippet needs to be added to the bottom of your `.bash_profile` file:
 
-```sh
+```
 # tmux-resurrect-ng prompt_runner for auto save/restore
 if [[ -n "$TMUX" ]]; then
   source "$HOME/.tmux/plugins/tmux-resurrect-ng/scripts/prompt_runner.sh"
@@ -122,7 +148,7 @@ New `bash` sessions will only load the above snippet if the TMUX environment var
 #### Exit tmux and kill the server
 Restarting tmux completely is the easiest way to get up and running following installation:
 
-```sh
+```
 >tmux kill-server
 >tmux new -s MY_SESSION
 ```
@@ -139,7 +165,7 @@ With Tmux Plugin Manager (TPM) already installed, you can add **tmux-resurrect-n
 #### Add **tmux-resurrect-ng** to .tmux.conf TPM plugin list
 Add **tmux-resurrect-ng** to the TPM plugin list in `.tmux.conf`:
 
-```sh
+```
 set -g @tpm_plugins '           \
   tmux-plugins/tpm              \
   markeissler/tmux-resurrect-ng   \
@@ -150,26 +176,26 @@ set -g @tpm_plugins '           \
 #### Update your .tmux.conf file
 The automation offered by **tmux-resurrect-ng** is triggered by the `tmux` status bar and the `bash` prompt. Edit your .tmux.conf file by adding the following snippet to the **end** of your status-right configuration:
 
-```sh
+```
 [#($HOME/.tmux/plugins/tmux-resurrect-ng/scripts/status_runner.sh #S)]
 ```
 
-**NOTE: That trailing #S is critical to this installation and is only supported by `tmux` 1.9a1 (see above).**
+**NOTE: That trailing #S is critical to this installation and is only supported by `tmux-19a1` (see above).**
 
 A complete example appears below:
-```sh
+```
 set -g status-right "#(hostname -s | cut -c 1-23) #[fg=cyan][#(uptime | rev | cut -d":" -f1 | rev | sed s/,//g) ]#[default][#($HOME/.tmux/plugins/tmux-resurrect-ng/scripts/status_runner.sh #S)]"
 ```
 
 It is recommended to also limit the width of the status-right section:
-```sh
+```
 set -g status-right-length 40
 ```
 
 To configure **tmux-resurrect-ng** add the following snippet to your `.tmux.conf` file:
 
 
-```sh
+```
 # enable tmux-resurrect-ng pane buffers
 set -g @resurrect-enable-pane-buffers 'on'
 
@@ -180,7 +206,7 @@ set -g @resurrect-enable-pane-history 'on'
 #### Update your .bash_profile file to enable prompt integration
 The following snippet needs to be added to the bottom of your `.bash_profile` file:
 
-```sh
+```
 # tmux-resurrect-ng prompt_runner for auto save/restore
 if [[ -n "$TMUX" ]]; then
   source "$HOME/.tmux/plugins/tmux-resurrect-ng/scripts/prompt_runner.sh"
@@ -192,7 +218,7 @@ New `bash` sessions will only load the above snippet if the TMUX environment var
 
 **NOTE: You will need to re-load your updated `.bash_profile` for each open pane in `tmux`:
 
-```sh
+```
 >source $HOME/.bash_profile
 ```
 
@@ -201,7 +227,7 @@ One way around this is to create a manual session save and then simply re-start 
 ## Eliminating backup commands from Bash history
 **tmux-resurrect-ng** performs some of its backup voodoo by executing commands (via `tmux`) directly in each pane. With prompt integration these calls are invisible but would otherwise appear in the `bash` history for each pane. This behavior can be eliminated by setting `HISTCONTROL` appropriately in your `.bashrc` file:
 
-```sh
+```
 # prevent commands which begin with a space from being logged to history
 HISTCONTROL=ignorespace
 ```
@@ -232,7 +258,7 @@ The goal of **tmux-resurrect-ng** is automation.
 Saving of geometry is 100% automated and will occur every 5 minutes (unless configured otherwise). Saving of pane history and buffers is semi-automated: triggers will be created for panes where history or buffers files have become stale but the user needs to initiate a carriage return in each target pane to initiate history and buffer saves and consequently clear the triggers.
 
 
-During normal use, as you enter commands, these carriage returns will occur as part of your activity and saving of pane history and buffers will occur unobtrusively. Triggers will not be created for panes that cannot be saved/restored. 
+During normal use, as you enter commands, these carriage returns will occur as part of your activity and saving of pane history and buffers will occur unobtrusively. Triggers will not be created for panes that cannot be saved/restored.
 
 
 #### Auto restore
@@ -244,7 +270,7 @@ Restoration is 100% automated and will occur when a new named tmux session is cr
 Historical backup files will be purged automatically according to the purge frequency setting.
 
 #### Legacy manual save and restore
-As of v1.0.0, **tmux-resurrect-ng** continues to support manual trigger of save and restore via legacy key bindings. This functionality may be removed in the future as the focus of `tmux-resurrect-ng` is seamless automation.
+As of v1.0.1, **tmux-resurrect-ng** continues to support manual trigger of save and restore via legacy key bindings. This functionality may be removed in the future as the focus of `tmux-resurrect-ng` is seamless automation.
 
 **NOTE: Buffer files that have been saved via manual trigger may include obtrusive calls to the history write command.**
 
@@ -257,14 +283,14 @@ As of v1.0.0, **tmux-resurrect-ng** continues to support manual trigger of save 
 
 Custom key bindings can be set by adding the following to your `.tmux.conf` file:
 
-```sh
+```
 set -g @resurrect-save 'S'
 set -g @resurrect-restore 'R'
 ```
 
 Then reload the `tmux` environment:
 
-```sh
+```
 >tmux source-file $HOME/.tmux.conf
 ```
 
@@ -272,7 +298,7 @@ Then reload the `tmux` environment:
 
 The **tmux-resurrect-ng** status bar feature will indicate the following states:
 
-```sh
+```
   [X] : tmux-resurrect-ng disabled
   [-] : enabled, pending progress
   [S] : state (geometry) (for all panes) saved and restorable
@@ -289,7 +315,7 @@ During normal operation progress will alternate between [-], [S] and [R]. When a
 ## Migration
 Moving from [tmux-resurrect](https://github.com/tmux-plugins/tmux-resurrect) to **tmux-resurrect-ng** is simplified using the included migration script. The migration task is necessary only if you care about restoring previous session data before starting **tmux-resurrect-ng** for the first time. **A migration of data files is necessary because all of the file naming schemes have changed.**
 
-The **tmux-resurrect-ng** v0.9.0 migration script supports [tmux-resurrect](https://github.com/tmux-plugins/tmux-resurrect) v1.5.0 and will migrate the following files:
+The **tmux-resurrect-ng** v1.0.1 migration script supports [tmux-resurrect](https://github.com/tmux-plugins/tmux-resurrect) v1.5.0 and will migrate the following files:
 
 |file                               |purpose     |
 |-----------------------------------|------------|
@@ -298,19 +324,19 @@ The **tmux-resurrect-ng** v0.9.0 migration script supports [tmux-resurrect](http
 |tmux_buffer-SESSION:WINDOW.pane    |pane buffer |
 
 Run the migration script as follows:
-```sh
+```
 >$HOME/.tmux/plugins/tmux-resurrect-ng/utilities/tmxr_migrate.sh
 ```
 
 After running the migration script, original files will have been preserved in the following directory:
 
-```sh
+```
 $HOME/.tmux/resurrect-ng/migrated_files
 ```
 
 To revert back to [tmux-resurrect](https://github.com/tmux-plugins/tmux-resurrect), execute the following commands (after exiting tmux):
 
-```sh
+```
 >tmux kill-server
 >cp $HOME/.tmux/resurrect-ng/migrated_files $HOME/.tmux/resurrect
 ```
@@ -321,7 +347,7 @@ Reconfigure `.tmux.conf` and `.bash_profile` as needed, then restart `tmux`.
 The **tmux-resurrect-ng** plugin is limited by functionality offered by `tmux` and the operating system itself. For the most part this means that save and restore of history and buffers can only be offered for pane shell sessions not actively running a program other than the shell itself. For example, if a pane is running the `top` command the pane geometry will be saved (so the pane itself will be restored) but until the `top` process has ended neither the pane history or buffer will be triggered for backup.
 
 >NOTE: While the pane buffer could be saved, upon restore it would be out-of-sync with the history and potentially confusing to the user.
-   
+
 These limitations may sound...limiting...but the way we usually make use of the shell (running a command and then sitting idle, then running another command) means there are plenty of opportunities to backup.
 
 It's also important to note that automated backups will not take place for a particular pane until the next carriage return is received at the prompt, while a trigger is in place (.trigger files are created whenever a pane history or buffer file has become stale).

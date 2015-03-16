@@ -356,25 +356,37 @@ find_timestamp_from_file() {
 sanity_ok() {
   local resurrect_dir="$(resurrect_dir)"
   local status_index=0
+  local tmxr_runner_flag="${1:-false}"
 
   #
   # status index
   #   0 - ok
-  #   1 - bad tmux version
-  #   2 - bad file system
+  #   1 - no tmux server
+  #   2 - bad tmux version
+  #   3 - bad file system
   # 255 - fatal (reserved)
   #
 
+  # is tmux running?
+  [[ -z "$TMUX" ]] && status_index=1
+
   # check tmux version
-  if [[ $(supported_tmux_version_ok; echo $?) -eq 1 ]]; then
-    status_index=1
+  #
+  # @TODO: check_tmux_version.sh is broken for prompt_runner
+  # On startup, the first prompt triggers a call through sanity_ok(), which
+  # then ends up calling check_tmux_version.sh. If that script calls the
+  # tmux display-message it will fail because a client does  not yet exist.
+  if [[ $status_index -eq 0 && "$tmxr_runner_flag" == false ]]; then
+    if [[ $(supported_tmux_version_ok; echo $?) -eq 1 ]]; then
+      status_index=2
+    fi
   fi
 
   # create resurrect_dir if it doesn't exist
   if [[ $status_index -eq 0 && ! -d "$resurrect_dir" ]]; then
     # tmxr directory, try to recover by creating one
     mkdir -p "$resurrect_dir"
-    [[ $? -ne 0 ]] && status_index=2
+    [[ $? -ne 0 ]] && status_index=3
   fi
 
   return $status_index
@@ -509,7 +521,7 @@ remove_first_char() {
 }
 
 restore_zoomed_windows() {
-  local session_name"${1:-$(get_session_name)}" # defaults to client session
+  local session_name="${1:-$(get_session_name)}" # defaults to client session
   local last_state_file="$(last_resurrect_file "$session_name")"
 
   while IFS=$'\t' read _session_name _window_number; do

@@ -25,7 +25,11 @@ main() {
   local purge_rslt
 
   # we must have a session name!
-  [[ -z "$session_name" ]] && return 6 # fatal!
+  if [[ $(sanity_ok; echo $?) -ne 0 || -z "$session_name" ]]; then
+    status_index=6
+    printf "%c\n" ${status_codes[$status_index]};
+    return $status_index
+  fi
 
   # set global session variable
   set_session_name "$session_name"
