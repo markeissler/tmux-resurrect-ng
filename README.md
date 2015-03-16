@@ -3,7 +3,7 @@ Automated save and restore of `tmux` session window and pane geometry (layout an
 
 >**tmux-resurrect-ng** is currently only compatible with the `bash` shell. If your default shell is not `bash` (e.g. zsh, ksh, csh) then this plugin is not for you; you should consider the original [tmux-resurrect](https://github.com/tmux-plugins/tmux-resurrect) project instead.
 
-As of v1.0.1, **tmux-resurrect-ng** continues to support manual trigger of save and restore but that functionality may be removed in the future as the focus of this project is seamless automation.
+As of v1.0.2, **tmux-resurrect-ng** continues to support manual trigger of save and restore but that functionality may be removed in the future as the focus of this project is seamless automation.
 
 ##Features
 
@@ -270,7 +270,7 @@ Restoration is 100% automated and will occur when a new named tmux session is cr
 Historical backup files will be purged automatically according to the purge frequency setting.
 
 #### Legacy manual save and restore
-As of v1.0.1, **tmux-resurrect-ng** continues to support manual trigger of save and restore via legacy key bindings. This functionality may be removed in the future as the focus of `tmux-resurrect-ng` is seamless automation.
+As of v1.0.2, **tmux-resurrect-ng** continues to support manual trigger of save and restore via legacy key bindings. This functionality may be removed in the future as the focus of `tmux-resurrect-ng` is seamless automation.
 
 **NOTE: Buffer files that have been saved via manual trigger may include obtrusive calls to the history write command.**
 
@@ -315,7 +315,7 @@ During normal operation progress will alternate between [-], [S] and [R]. When a
 ## Migration
 Moving from [tmux-resurrect](https://github.com/tmux-plugins/tmux-resurrect) to **tmux-resurrect-ng** is simplified using the included migration script. The migration task is necessary only if you care about restoring previous session data before starting **tmux-resurrect-ng** for the first time. **A migration of data files is necessary because all of the file naming schemes have changed.**
 
-The **tmux-resurrect-ng** v1.0.1 migration script supports [tmux-resurrect](https://github.com/tmux-plugins/tmux-resurrect) v1.5.0 and will migrate the following files:
+The **tmux-resurrect-ng** v1.0.2 migration script supports [tmux-resurrect](https://github.com/tmux-plugins/tmux-resurrect) v1.5.0 and will migrate the following files:
 
 |file                               |purpose     |
 |-----------------------------------|------------|
