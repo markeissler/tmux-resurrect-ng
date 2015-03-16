@@ -10,7 +10,7 @@
 TMXR_SESSION=""
 
 #
-tmxr_version="1.0.0"
+tmxr_version="1.0.1"
 
 # supported tmxr versions
 #
