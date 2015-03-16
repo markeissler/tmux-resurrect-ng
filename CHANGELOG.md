@@ -1,6 +1,7 @@
 
 v1.0.2 / 2015-03-16
 ===================
+  * Updated README for 1.0.2.
   * Added this CHANGELOG!
 
 v1.0.1 / 2015-03-15
